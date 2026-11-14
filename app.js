@@ -28,9 +28,11 @@ const eventsElement = document.querySelector("#events");
 const statusElement = document.querySelector("#status");
 const sourceStatusElement = document.querySelector("#source-status");
 const dateFiltersElement = document.querySelector("#date-filters");
+const duplicateFiltersElement = document.querySelector("#duplicate-filters");
 const feedbackButton = document.querySelector("#feedback-button");
 const enabledSources = new Map(sources.map((source) => [source.id, true]));
 let selectedDateRange = "all";
+let selectedDuplicateMode = "none";
 let allEvents = [];
 
 feedbackButton.addEventListener("click", () => {
@@ -342,6 +344,188 @@ function renderSourceStatus(loadedSources) {
   }
 }
 
+const duplicateThreshold = 0.88;
+const nameStopWords = new Set([
+  "competition",
+  "kolo",
+  "match",
+  "pretek",
+  "preteky",
+  "round",
+]);
+const locationStopWords = new Set([
+  "range",
+  "shooting",
+  "slovakia",
+  "slovensko",
+  "strelnica",
+]);
+
+function eventDateKey(value) {
+  const text = String(value ?? "").trim();
+  const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  const local = text.match(/^(\d{1,2})\s*[./]\s*(\d{1,2})\s*[./]\s*(\d{4})$/);
+  const parts = iso
+    ? [Number(iso[1]), Number(iso[2]), Number(iso[3])]
+    : local
+      ? [Number(local[3]), Number(local[2]), Number(local[1])]
+      : null;
+
+  if (!parts) {
+    return null;
+  }
+
+  const [year, month, day] = parts;
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function eventTokens(value, stopWords, year) {
+  return new Set(
+    String(value ?? "")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .split(/\s+/)
+      .filter((token) => token && token !== String(year) && !stopWords.has(token)),
+  );
+}
+
+function diceSimilarity(left, right) {
+  if (left.size === 0 || right.size === 0) {
+    return null;
+  }
+
+  let sharedTokens = 0;
+  for (const token of left) {
+    if (right.has(token)) {
+      sharedTokens += 1;
+    }
+  }
+  return (2 * sharedTokens) / (left.size + right.size);
+}
+
+function duplicateProbability(left, right) {
+  const leftDate = eventDateKey(left.date);
+  const rightDate = eventDateKey(right.date);
+  if (leftDate && rightDate && leftDate !== rightDate) {
+    return 0.02;
+  }
+
+  const year = Number((leftDate || rightDate || "").slice(0, 4)) || null;
+  const nameScore = diceSimilarity(
+    eventTokens(left.name, nameStopWords, year),
+    eventTokens(right.name, nameStopWords, year),
+  );
+  const locationScore = diceSimilarity(
+    eventTokens(left.location, locationStopWords),
+    eventTokens(right.location, locationStopWords),
+  );
+
+  if (nameScore === null && locationScore === null) {
+    return 0;
+  }
+
+  const parts = [
+    [nameScore, 0.55],
+    [locationScore, 0.3],
+    [leftDate && rightDate ? 1 : null, 0.15],
+  ].filter(([score]) => score !== null);
+  const totalWeight = parts.reduce((sum, [, weight]) => sum + weight, 0);
+  let score =
+    parts.reduce((sum, [value, weight]) => sum + value * weight, 0) /
+    totalWeight;
+
+  if (!leftDate || !rightDate) {
+    score = Math.min(score, 0.85);
+  }
+  if (nameScore === null) {
+    score = Math.min(score, 0.75);
+  }
+  if (locationScore === null) {
+    score = Math.min(score, 0.85);
+  }
+
+  return Math.round(score * 100) / 100;
+}
+
+function findDuplicateGroups(events) {
+  const eventsByDate = new Map();
+  for (const event of events) {
+    const date = eventDateKey(event.date);
+    if (!date) {
+      continue;
+    }
+    if (!eventsByDate.has(date)) {
+      eventsByDate.set(date, []);
+    }
+    eventsByDate.get(date).push(event);
+  }
+
+  const duplicateGroups = [];
+  for (const sameDayEvents of eventsByDate.values()) {
+    const groups = [];
+    for (const event of sameDayEvents) {
+      let bestMatch = null;
+      for (const group of groups) {
+        if (
+          group.events.some(
+            (member) => member.source.id === event.source.id,
+          )
+        ) {
+          continue;
+        }
+
+        const scores = group.events.map((member) =>
+          duplicateProbability(event, member),
+        );
+        if (scores.some((score) => score < duplicateThreshold)) {
+          continue;
+        }
+
+        const confidence = Math.min(group.confidence, ...scores);
+        if (!bestMatch || confidence > bestMatch.confidence) {
+          bestMatch = { group, confidence };
+        }
+      }
+
+      if (bestMatch) {
+        bestMatch.group.events.push(event);
+        bestMatch.group.confidence = bestMatch.confidence;
+      } else {
+        groups.push({ events: [event], confidence: 1 });
+      }
+    }
+
+    duplicateGroups.push(...groups.filter((group) => group.events.length > 1));
+  }
+
+  return duplicateGroups;
+}
+
+function chooseDuplicateRepresentative(group) {
+  return group.events.reduce((best, candidate) => {
+    const informationScore = (event) =>
+      Number(Boolean(event.name.trim())) * 1000 +
+      event.name.trim().length +
+      event.location.trim().length;
+    return informationScore(candidate) > informationScore(best)
+      ? candidate
+      : best;
+  });
+}
+
 function renderEventList() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -363,22 +547,26 @@ function renderEventList() {
     return true;
   });
 
-  const seen = new Set();
-  events = events.filter((event) => {
-    const location = event.location
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-    const key = `${event.date}|${location}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-  events.sort((left, right) => left.date.localeCompare(right.date));
+  events.sort((left, right) =>
+    (eventDateKey(left.date) || "").localeCompare(eventDateKey(right.date) || ""),
+  );
+  const duplicateInfo = new Map();
+  if (selectedDuplicateMode !== "none") {
+    findDuplicateGroups(events).forEach((group, index) => {
+      const info = {
+        id: index + 1,
+        confidence: group.confidence,
+        representative: chooseDuplicateRepresentative(group),
+      };
+      group.events.forEach((event) => duplicateInfo.set(event, info));
+    });
+  }
+  if (selectedDuplicateMode === "hide") {
+    events = events.filter((event) => {
+      const info = duplicateInfo.get(event);
+      return !info || info.representative === event;
+    });
+  }
   eventsElement.replaceChildren();
 
   if (events.length === 0) {
@@ -412,6 +600,14 @@ function renderEventList() {
       timeZone: "UTC",
     }).format(new Date(`${event.date}T00:00:00Z`));
     nameCell.textContent = event.name;
+    const duplicate = duplicateInfo.get(event);
+    if (selectedDuplicateMode === "show" && duplicate) {
+      const badge = document.createElement("span");
+      const percentage = Math.round(duplicate.confidence * 100);
+      badge.className = "duplicate-badge";
+      badge.textContent = `Možná duplicita #${duplicate.id} · ${percentage} %`;
+      nameCell.append(" ", badge);
+    }
     locationCell.textContent = event.location;
 
     const url = new URL(event.url, window.location.href);
@@ -448,6 +644,24 @@ dateFiltersElement.addEventListener("click", (event) => {
   }
   selectedDateRange = button.dataset.range;
   for (const filterButton of dateFiltersElement.querySelectorAll("button[data-range]")) {
+    filterButton.setAttribute(
+      "aria-pressed",
+      String(filterButton === button),
+    );
+  }
+  renderEventList();
+});
+
+duplicateFiltersElement.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  const button = event.target.closest("button[data-mode]");
+  if (!button) {
+    return;
+  }
+  selectedDuplicateMode = button.dataset.mode;
+  for (const filterButton of duplicateFiltersElement.querySelectorAll("button[data-mode]")) {
     filterButton.setAttribute(
       "aria-pressed",
       String(filterButton === button),
