@@ -53,15 +53,30 @@ h2 {
   font-size: 1.35rem;
 }
 
-.intro,
 .status,
 footer {
   color: #56645c;
 }
 
-.intro {
-  margin-bottom: 0;
-  font-size: 1.05rem;
+.feedback-button {
+  padding: 0.6rem 0.85rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #17613c;
+  color: #fff;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.feedback-button:hover {
+  background: #0c4227;
+}
+
+.feedback-button:focus-visible {
+  outline: 3px solid #e0a52e;
+  outline-offset: 2px;
 }
 
 .source-status {

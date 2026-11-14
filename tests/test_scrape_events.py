@@ -1,5 +1,6 @@
 import sys
 import json
+import ssl
 import tempfile
 import unittest
 from datetime import date
@@ -8,7 +9,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import scraper_common
-from scraper_common import parse_date
+from scraper_common import fetch_html, parse_date
 from scrape_los_sk import parse_events as parse_los_sk
 from scrape_sads import parse_events as parse_sads
 from scrape_shootingarea import parse_events as parse_shootingarea
@@ -19,6 +20,19 @@ TODAY = date(2026, 11, 14)
 
 
 class ParseEventsTests(unittest.TestCase):
+    def test_fetch_html_uses_verified_context_with_certifi_roots(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = b"page"
+
+        with mock.patch.object(
+            scraper_common, "urlopen", return_value=response
+        ) as open_url:
+            self.assertEqual(fetch_html("https://example.test"), "page")
+
+        context = open_url.call_args.kwargs["context"]
+        self.assertTrue(context.check_hostname)
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+
     def test_los_sk_reads_single_digit_day_and_month(self):
         self.assertEqual(parse_date("5.2.2027"), date(2027, 2, 5))
 
@@ -165,6 +179,45 @@ class ParseEventsTests(unittest.TestCase):
                     "location": "Vtáčie údolie",
                     "url": "https://new.sads.sk/index.php?option=com_kalendar&view=pretek&id=30",
                 }
+            ],
+        )
+
+    def test_sads_follows_pagination_and_deduplicates_events(self):
+        first_page = """
+        <table>
+          <tr><td></td><td></td><td>05.11.2026</td><td><a href="/event?id=old">Match</a></td><td>HG</td><td>LEVEL 1</td><td>Old venue</td></tr>
+          <tr><td></td><td></td><td>05.12.2026</td><td><a href="/event?id=1">Match</a></td><td>HG</td><td>LEVEL 1</td><td>First venue</td></tr>
+        </table>
+        <a href="/index.php?option=com_kalendar&amp;view=preteky&amp;Itemid=414&amp;limitstart=20">Next</a>
+        """
+        second_page = """
+        <table>
+          <tr><td></td><td></td><td>05.12.2026</td><td><a href="/event?id=1">Match</a></td><td>HG</td><td>LEVEL 1</td><td>First venue</td></tr>
+          <tr><td></td><td></td><td>06.12.2026</td><td><a href="/event?id=2">Match</a></td><td>HG</td><td>LEVEL 1</td><td>Second venue</td></tr>
+        </table>
+        """
+        next_page_url = (
+            "https://new.sads.sk/index.php?option=com_kalendar"
+            "&view=preteky&Itemid=414&limitstart=20"
+        )
+
+        with mock.patch("scrape_sads.fetch_html", return_value=second_page) as fetch:
+            events = parse_sads(first_page, TODAY)
+
+        fetch.assert_called_once_with(next_page_url)
+        self.assertEqual(
+            events,
+            [
+                {
+                    "date": "2026-12-05",
+                    "location": "First venue",
+                    "url": "https://new.sads.sk/event?id=1",
+                },
+                {
+                    "date": "2026-12-06",
+                    "location": "Second venue",
+                    "url": "https://new.sads.sk/event?id=2",
+                },
             ],
         )
 

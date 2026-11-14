@@ -60,6 +60,7 @@ class TableEventParser(HTMLParser):
         self.cell = None
         self.saw_calendar_row = False
         self.events = []
+        self.links = []
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
@@ -69,10 +70,13 @@ class TableEventParser(HTMLParser):
             self.cell = {"text": [], "links": []}
         elif tag == "br" and self.cell is not None:
             self.cell["text"].append("\n")
-        elif tag == "a" and self.cell is not None:
+        elif tag == "a":
             href = attributes.get("href")
             if href:
-                self.cell["links"].append(urljoin(self.base_url, href))
+                link = urljoin(self.base_url, href)
+                self.links.append(link)
+                if self.cell is not None:
+                    self.cell["links"].append(link)
 
     def handle_data(self, data):
         if self.cell is not None:
@@ -136,8 +140,14 @@ def parse_table_events(
 
 
 def fetch_html(url):
+    import ssl
+
+    import certifi
+
     request = Request(url, headers={"User-Agent": "KamNaSutaz event calendar scraper"})
-    with urlopen(request, timeout=30) as response:
+    context = ssl.create_default_context()
+    context.load_verify_locations(cafile=certifi.where())
+    with urlopen(request, timeout=30, context=context) as response:
         return response.read().decode("utf-8")
 
 
