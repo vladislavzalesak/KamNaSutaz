@@ -64,6 +64,93 @@ footer {
   font-size: 1.05rem;
 }
 
+.source-status {
+  margin-top: 1.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #dce5de;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.source-status h2 {
+  margin-bottom: 0.6rem;
+  font-size: 1rem;
+}
+
+.source-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.75rem;
+}
+
+.source-card {
+  min-width: 0;
+  padding: 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+}
+
+.source-card--fresh {
+  border-color: rgba(36, 132, 72, 0.2);
+  background: rgba(54, 166, 91, 0.09);
+}
+
+.source-card--stale {
+  border-color: rgba(181, 133, 18, 0.22);
+  background: rgba(235, 190, 62, 0.12);
+}
+
+.source-card--failed {
+  border-color: rgba(174, 53, 53, 0.2);
+  background: rgba(205, 72, 72, 0.09);
+}
+
+.source-card--unknown {
+  border-color: rgba(73, 91, 79, 0.12);
+  background: rgba(73, 91, 79, 0.05);
+}
+
+.source-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.source-name {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.source-state,
+.source-time {
+  margin: 0.55rem 0 0;
+  color: #56645c;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.source-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.source-cell {
+  width: 3.5rem;
+  text-align: center;
+}
+
+.source-cell .source-icon {
+  margin: 0 auto;
+}
+
+td:nth-child(2) {
+  width: 9rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .table-wrap {
   overflow-x: auto;
   border: 1px solid #dce5de;
@@ -94,12 +181,6 @@ td {
   border-top: 1px solid #e8eee9;
 }
 
-td:first-child {
-  width: 9rem;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
 td:last-child {
   width: 10rem;
   text-align: right;
@@ -115,6 +196,27 @@ a {
 
 a:hover {
   color: #0c4227;
+}
+
+.event-link {
+  display: inline-flex;
+  justify-content: center;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.5rem;
+  background: #17613c;
+  color: #fff;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.event-link:hover {
+  background: #0c4227;
+  color: #fff;
+}
+
+.event-link:focus-visible {
+  outline: 3px solid #e0a52e;
+  outline-offset: 2px;
 }
 
 .status {
@@ -151,7 +253,7 @@ footer {
     padding: 0.85rem 0.7rem;
   }
 
-  td:first-child {
+  td:nth-child(2) {
     width: auto;
   }
 
