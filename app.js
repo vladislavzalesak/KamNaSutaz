@@ -1,12 +1,28 @@
 const sources = [
-  { id: "los-sk", name: "LOS-SK", icon: "assets/icons/los-sk.svg" },
-  { id: "squad", name: "SQUAD", icon: "assets/icons/squad.svg" },
+  {
+    id: "los-sk",
+    name: "LOS-SK",
+    icon: "assets/icons/los-sk.svg",
+    url: "https://los-sk.sk/index.php/competition/index",
+  },
+  {
+    id: "squad",
+    name: "SQUAD",
+    icon: "assets/icons/squad.svg",
+    url: "https://squad.sk/",
+  },
   {
     id: "shootingarea",
     name: "Shooting Area",
     icon: "assets/icons/shootingarea.svg",
+    url: "https://www.shootingarea.eu/sk/calendar-ipsc",
   },
-  { id: "sads", name: "SADS", icon: "assets/icons/sads.svg" },
+  {
+    id: "sads",
+    name: "SADS",
+    icon: "assets/icons/sads.svg",
+    url: "https://new.sads.sk/index.php?option=com_kalendar&view=preteky&Itemid=414",
+  },
 ];
 const eventsElement = document.querySelector("#events");
 const statusElement = document.querySelector("#status");
@@ -134,6 +150,7 @@ async function loadEvents() {
       .filter((row) => row.length > 1)
       .map((row) => ({
         date: row[columns.date],
+        name: columns.name === undefined ? "" : row[columns.name] || "",
         location: row[columns.location],
         url: row[columns.url],
         source,
@@ -158,6 +175,7 @@ function renderSourceStatus(loadedSources) {
   for (const { source, manifest } of loadedSources) {
     const item = document.createElement("article");
     item.setAttribute("role", "listitem");
+    const link = document.createElement("a");
     const heading = document.createElement("div");
     const name = document.createElement("h3");
     const state = document.createElement("p");
@@ -178,6 +196,11 @@ function renderSourceStatus(loadedSources) {
     }
 
     item.className = `source-card source-card--${status}`;
+    link.className = "source-card-link";
+    link.href = source.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.setAttribute("aria-label", `Otvoriť stránku ${source.name}`);
     heading.className = "source-card-heading";
     name.className = "source-name";
     state.className = "source-state";
@@ -188,7 +211,7 @@ function renderSourceStatus(loadedSources) {
     icon.addEventListener("error", () => icon.remove());
     name.textContent = source.name;
     heading.append(icon, name);
-    item.append(heading, state);
+    link.append(heading, state);
 
     if (manifest.last_successful_at) {
       const lastSuccess = document.createElement("p");
@@ -200,7 +223,7 @@ function renderSourceStatus(loadedSources) {
       }).format(new Date(manifest.last_successful_at));
       lastSuccess.className = "source-time";
       lastSuccess.append("Naposledy úspešne: ", time);
-      item.append(lastSuccess);
+      link.append(lastSuccess);
     }
 
     if (manifest.last_run_status === "failed" && manifest.last_attempted_at) {
@@ -213,9 +236,10 @@ function renderSourceStatus(loadedSources) {
       }).format(new Date(manifest.last_attempted_at));
       lastFailure.className = "source-time";
       lastFailure.append("Posledný pokus: ", time);
-      item.append(lastFailure);
+      link.append(lastFailure);
     }
 
+    item.append(link);
     sourceStatusElement.append(item);
   }
 }
@@ -249,6 +273,7 @@ function renderEvents({ events, loadedSources }) {
     const row = document.createElement("tr");
     const sourceCell = document.createElement("td");
     const dateCell = document.createElement("td");
+    const nameCell = document.createElement("td");
     const locationCell = document.createElement("td");
     const linkCell = document.createElement("td");
     const icon = document.createElement("img");
@@ -266,6 +291,7 @@ function renderEvents({ events, loadedSources }) {
       dateStyle: "medium",
       timeZone: "UTC",
     }).format(new Date(`${event.date}T00:00:00Z`));
+    nameCell.textContent = event.name;
     locationCell.textContent = event.location;
 
     const url = new URL(event.url, window.location.href);
@@ -284,7 +310,7 @@ function renderEvents({ events, loadedSources }) {
     link.title = `Detail na stránke ${event.source.name}`;
 
     linkCell.append(link);
-    row.append(sourceCell, dateCell, locationCell, linkCell);
+    row.append(sourceCell, dateCell, nameCell, locationCell, linkCell);
     return row;
   });
 

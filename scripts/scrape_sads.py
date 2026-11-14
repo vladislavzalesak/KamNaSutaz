@@ -53,6 +53,7 @@ def parse_events(html, today):
             date_column=2,
             location_column=6,
             link_column=3,
+            name_column=3,
         )
         parser.feed(page_html)
         if not parser.saw_calendar_row:

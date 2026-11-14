@@ -29,11 +29,20 @@ class SquadParser(HTMLParser):
 
         if tag == "div":
             if self.current is None and "zavod" in classes:
-                self.current = {"datum": [], "misto": [], "links": []}
+                self.current = {
+                    "datum": [],
+                    "name": [],
+                    "misto": [],
+                    "links": [],
+                }
                 self.event_depth = self.div_depth
             elif self.current is not None:
                 field = next(
-                    (name for name in ("datum", "misto") if name in classes),
+                    (
+                        name
+                        for name in ("datum", "name", "misto")
+                        if name in classes
+                    ),
                     None,
                 )
                 if field:
@@ -82,11 +91,20 @@ class SquadParser(HTMLParser):
             ),
             "",
         )
+        name = next(
+            (
+                " ".join("".join(part).split())
+                for part in self.current["name"]
+                if "".join(part).strip()
+            ),
+            "",
+        )
         self.events.append(
             make_event(
                 event_date,
                 location,
                 self.current["links"][0] if self.current["links"] else "",
+                name,
             )
         )
 

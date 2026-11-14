@@ -27,12 +27,17 @@ Stavové boxy sú zelené pri úspechu v poslednom týždni, žlté pri staršom
 Zobrazený čas je vždy čas posledného úspešného behu (nie zmena obsahu CSV);
 pri chybe sa navyše zobrazí čas neúspešného pokusu.
 
-Podporované zdroje sú LOS-SK, SQUAD, Shooting Area a SADS. LOS-SK dátumy číta
-vo formáte `D.M.YYYY` (ak sú hodnoty dvojciferné, aj `DD.MM.YYYY`) a zapisuje
-ich ako `YYYY-MM-DD` do CSV. Rovnaký dátum a miesto sa pri zobrazení považujú
-za možnú duplicitu a zobrazia sa iba raz. Scrapery používajú Python štandardnú
-knižnicu a balík `certifi`, ktorého CA certifikáty dopĺňajú predvolený úložný
-priestor Pythonu pri overovaní HTTPS. Závislosti sa inštalujú príkazom
-`python -m pip install -r requirements.txt`. Pri zmene očakávanej štruktúry
-zdrojovej stránky scrapery skončia chybou namiesto prepísania údajov neúplným
-výsledkom.
+Podporované zdroje sú LOS-SK, SQUAD, Shooting Area a SADS. CSV obsahuje dátum,
+názov preteku (ak ho zdroj poskytuje), miesto a odkaz. LOS-SK dátumy číta vo
+formáte `D.M.YYYY` (ak sú hodnoty dvojciferné, aj `DD.MM.YYYY`) a zapisuje ich
+ako `YYYY-MM-DD` do CSV. Rovnaký dátum a miesto sa pri zobrazení považujú za
+možnú duplicitu a zobrazia sa iba raz. Scrapery používajú Python štandardnú
+knižnicu, `certifi` na doplnenie CA certifikátov pri overovaní HTTPS a `tzdata`
+pre systémy bez systémovej databázy časových pásiem. SQUAD momentálne
+neposiela celý TLS certifikačný reťazec; `scripts/certs/squad-ca-chain.pem`
+dopĺňa reťazec publikovaný Let’s Encrypt a TLS overovanie zostáva zapnuté. Ak
+SQUAD zmení certifikačnú autoritu, tento doplnkový reťazec bude treba obnoviť.
+Závislosti sa inštalujú príkazom
+`python -m pip install --upgrade -r requirements.txt`. Pri zmene očakávanej
+štruktúry zdrojovej stránky scrapery skončia chybou namiesto prepísania údajov
+neúplným výsledkom.

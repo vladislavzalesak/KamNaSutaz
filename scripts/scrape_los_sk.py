@@ -17,6 +17,7 @@ def parse_events(html, today):
         date_column=1,
         location_column=2,
         link_column=1,
+        name_column=0,
     )
 
 
