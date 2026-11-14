@@ -2,6 +2,6 @@
   "source_id": "squad",
   "file": null,
   "last_successful_at": null,
-  "last_attempted_at": null,
-  "last_run_status": "unknown"
+  "last_attempted_at": "2026-11-14T14:20:03.890912Z",
+  "last_run_status": "failed"
 }

@@ -1,7 +1,7 @@
 {
   "source_id": "shootingarea",
-  "file": null,
-  "last_successful_at": null,
-  "last_attempted_at": null,
-  "last_run_status": "unknown"
+  "file": "shootingarea_20261114T142006085539Z.csv",
+  "last_successful_at": "2026-11-14T14:20:06.086009Z",
+  "last_attempted_at": "2026-11-14T14:20:06.086009Z",
+  "last_run_status": "success"
 }
