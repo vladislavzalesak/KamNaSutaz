@@ -110,6 +110,139 @@ footer {
   gap: 0.75rem;
 }
 
+.event-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin: -1rem 0 2rem;
+  padding: 1rem;
+  border: 1px solid #dce5de;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.filter-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.filter-group legend {
+  margin-bottom: 0.55rem;
+  color: #56645c;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.source-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.source-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #dce5de;
+  border-radius: 0.65rem;
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 180ms ease;
+}
+
+.source-filter:hover {
+  border-color: #9dac9f;
+}
+
+.source-switch-track {
+  position: relative;
+  width: 2rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #aab4ad;
+  transition: background-color 180ms ease;
+}
+
+.source-switch-track::before {
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: #fff;
+  content: "";
+  transition: transform 180ms ease;
+}
+
+.source-filter input:checked + .source-switch-track {
+  background: #17613c;
+}
+
+.source-filter input:checked + .source-switch-track::before {
+  transform: translateX(0.85rem);
+}
+
+.source-filter input:not(:checked) ~ .source-filter-icon,
+.source-filter input:not(:checked) ~ .source-filter-name {
+  opacity: 0.5;
+}
+
+.source-filter input:focus-visible + .source-switch-track {
+  outline: 3px solid #344d82;
+  outline-offset: 2px;
+}
+
+.source-filter-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.source-filter-name {
+  white-space: nowrap;
+}
+
+.date-filters {
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid #dce5de;
+  border-radius: 0.7rem;
+  background: #f3f6f3;
+}
+
+.date-filter-button {
+  padding: 0.55rem 0.8rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #34443a;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.date-filter-button[aria-pressed="true"] {
+  background: #17613c;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(23, 97, 60, 0.25);
+}
+
+.date-filter-button:focus-visible {
+  outline: 3px solid #344d82;
+  outline-offset: 2px;
+}
+
 .source-card {
   position: relative;
   min-width: 0;
@@ -315,6 +448,23 @@ footer {
 @media (max-width: 520px) {
   .page {
     padding-top: 2.5rem;
+  }
+
+  .event-controls {
+    flex-direction: column;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .date-filters {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .date-filter-button {
+    padding-inline: 0.45rem;
   }
 
   th,

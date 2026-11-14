@@ -27,7 +27,12 @@ const sources = [
 const eventsElement = document.querySelector("#events");
 const statusElement = document.querySelector("#status");
 const sourceStatusElement = document.querySelector("#source-status");
+const sourceFiltersElement = document.querySelector("#source-filters");
+const dateFiltersElement = document.querySelector("#date-filters");
 const feedbackButton = document.querySelector("#feedback-button");
+const enabledSources = new Map(sources.map((source) => [source.id, true]));
+let selectedDateRange = "all";
+let allEvents = [];
 
 feedbackButton.addEventListener("click", () => {
   const address = [
@@ -171,6 +176,7 @@ async function loadEvents() {
 
 function renderSourceStatus(loadedSources) {
   sourceStatusElement.replaceChildren();
+  sourceFiltersElement.replaceChildren();
   const week = 7 * 24 * 60 * 60 * 1000;
   for (const { source, manifest } of loadedSources) {
     const item = document.createElement("article");
@@ -181,7 +187,15 @@ function renderSourceStatus(loadedSources) {
     const state = document.createElement("p");
     const icon = document.createElement("img");
     let status;
-    if (manifest.last_run_status === "failed") {
+    if (
+      manifest.last_run_status === "failed" &&
+      manifest.file &&
+      manifest.last_successful_at
+    ) {
+      status = "stale";
+      state.textContent =
+        "Posledný pokus zlyhal; zobrazujú sa posledné úspešné údaje";
+    } else if (manifest.last_run_status === "failed") {
       status = "failed";
       state.textContent = "Posledný pokus zlyhal";
     } else if (!manifest.last_successful_at) {
@@ -241,11 +255,55 @@ function renderSourceStatus(loadedSources) {
 
     item.append(link);
     sourceStatusElement.append(item);
+
+    const filter = document.createElement("label");
+    const checkbox = document.createElement("input");
+    const toggle = document.createElement("span");
+    const filterIcon = document.createElement("img");
+    const filterName = document.createElement("span");
+
+    filter.className = "source-filter";
+    checkbox.className = "visually-hidden";
+    checkbox.type = "checkbox";
+    checkbox.checked = enabledSources.get(source.id) !== false;
+    checkbox.setAttribute("aria-label", `Zobraziť súťaže zo zdroja ${source.name}`);
+    toggle.className = "source-switch-track";
+    toggle.setAttribute("aria-hidden", "true");
+    filterIcon.className = "source-filter-icon";
+    filterIcon.src = source.icon;
+    filterIcon.alt = "";
+    filterName.className = "source-filter-name";
+    filterName.textContent = source.name;
+    checkbox.addEventListener("change", () => {
+      enabledSources.set(source.id, checkbox.checked);
+      renderEventList();
+    });
+    filter.append(checkbox, toggle, filterIcon, filterName);
+    sourceFiltersElement.append(filter);
   }
 }
 
-function renderEvents({ events, loadedSources }) {
-  renderSourceStatus(loadedSources);
+function renderEventList() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endOfRange = new Date(today);
+  endOfRange.setDate(endOfRange.getDate() + 30);
+
+  let events = allEvents.filter((event) => {
+    if (enabledSources.get(event.source.id) === false) {
+      return false;
+    }
+
+    const eventDate = new Date(`${event.date}T00:00:00`);
+    if (selectedDateRange === "year") {
+      return eventDate.getFullYear() === today.getFullYear();
+    }
+    if (selectedDateRange === "30-days") {
+      return eventDate >= today && eventDate < endOfRange;
+    }
+    return true;
+  });
+
   const seen = new Set();
   events = events.filter((event) => {
     const location = event.location
@@ -265,7 +323,10 @@ function renderEvents({ events, loadedSources }) {
   eventsElement.replaceChildren();
 
   if (events.length === 0) {
-    statusElement.textContent = "Momentálne nie sú naplánované žiadne nadchádzajúce súťaže.";
+    statusElement.textContent =
+      [...enabledSources.values()].some(Boolean)
+        ? "Pre vybrané filtre nie sú naplánované žiadne nadchádzajúce súťaže."
+        : "Vyberte aspoň jeden zdroj súťaží.";
     return;
   }
 
@@ -316,6 +377,30 @@ function renderEvents({ events, loadedSources }) {
 
   eventsElement.append(...rows);
   statusElement.textContent = "";
+}
+
+dateFiltersElement.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  const button = event.target.closest("button[data-range]");
+  if (!button) {
+    return;
+  }
+  selectedDateRange = button.dataset.range;
+  for (const filterButton of dateFiltersElement.querySelectorAll("button[data-range]")) {
+    filterButton.setAttribute(
+      "aria-pressed",
+      String(filterButton === button),
+    );
+  }
+  renderEventList();
+});
+
+function renderEvents({ events, loadedSources }) {
+  allEvents = events;
+  renderSourceStatus(loadedSources);
+  renderEventList();
 }
 
 loadEvents()
