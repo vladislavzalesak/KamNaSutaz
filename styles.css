@@ -110,12 +110,18 @@ footer {
   gap: 0.75rem;
 }
 
+.filter-groups {
+  display: grid;
+  gap: 0.55rem;
+  width: min(100%, 460px);
+  margin: -1rem auto 2rem;
+}
+
 .date-filters {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.2rem;
-  width: min(100%, 460px);
-  margin: -1rem auto 2rem;
+  width: 100%;
   padding: 0.2rem;
   border: 1px solid #dce5de;
   border-radius: 0.7rem;
@@ -145,6 +151,19 @@ footer {
 .date-filter-button:focus-visible {
   outline: 3px solid #344d82;
   outline-offset: 2px;
+}
+
+.duplicate-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid #eadca6;
+  border-radius: 999px;
+  background: #fff8dc;
+  color: #66520a;
+  font-size: 0.72rem;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .source-card {
