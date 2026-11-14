@@ -7,12 +7,13 @@ import tempfile
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 DATE_PATTERN = re.compile(r"\b\d{1,2}\.\d{1,2}\.\d{4}\b")
 ROOT = Path(__file__).resolve().parents[1]
+SQUAD_CA_CHAIN_PATH = ROOT / "scripts" / "certs" / "squad-ca-chain.pem"
 
 
 def parse_date(value):
@@ -22,11 +23,12 @@ def parse_date(value):
     return datetime.strptime(match.group(), "%d.%m.%Y").date()
 
 
-def make_event(event_date, location, url):
+def make_event(event_date, location, url, name=""):
     if not location or not url:
         raise ValueError("Found a competition row without a location or detail link.")
     return {
         "date": event_date.isoformat(),
+        "name": " ".join(name.split()),
         "location": " ".join(location.split()),
         "url": url,
     }
@@ -49,6 +51,7 @@ class TableEventParser(HTMLParser):
         location_column,
         link_column,
         row_classes=None,
+        name_column=None,
     ):
         super().__init__(convert_charrefs=True)
         self.base_url = base_url
@@ -56,6 +59,7 @@ class TableEventParser(HTMLParser):
         self.location_column = location_column
         self.link_column = link_column
         self.row_classes = row_classes
+        self.name_column = name_column
         self.row = None
         self.cell = None
         self.saw_calendar_row = False
@@ -113,8 +117,21 @@ class TableEventParser(HTMLParser):
             line.strip() for line in location_text.splitlines() if line.strip()
         ]
         location = location_lines[-1] if location_lines else ""
+        if self.name_column == self.location_column:
+            name = location_lines[0] if len(location_lines) > 1 else ""
+        elif self.name_column is not None and self.name_column < len(cells):
+            name = " ".join("".join(cells[self.name_column]["text"]).split())
+        else:
+            name = ""
         links = cells[self.link_column]["links"]
-        self.events.append(make_event(event_date, location, links[0] if links else ""))
+        self.events.append(
+            make_event(
+                event_date,
+                location,
+                links[0] if links else "",
+                name,
+            )
+        )
 
 
 def parse_table_events(
@@ -125,6 +142,7 @@ def parse_table_events(
     location_column,
     link_column,
     row_classes=None,
+    name_column=None,
 ):
     parser = TableEventParser(
         base_url,
@@ -132,6 +150,7 @@ def parse_table_events(
         location_column,
         link_column,
         row_classes,
+        name_column,
     )
     parser.feed(html)
     if not parser.saw_calendar_row:
@@ -147,6 +166,8 @@ def fetch_html(url):
     request = Request(url, headers={"User-Agent": "KamNaSutaz event calendar scraper"})
     context = ssl.create_default_context()
     context.load_verify_locations(cafile=certifi.where())
+    if urlsplit(url).hostname in {"squad.sk", "www.squad.sk"}:
+        context.load_verify_locations(cafile=str(SQUAD_CA_CHAIN_PATH))
     with urlopen(request, timeout=30, context=context) as response:
         return response.read().decode("utf-8")
 
@@ -222,7 +243,10 @@ def write_events(path, events):
     with tempfile.NamedTemporaryFile(
         "w", encoding="utf-8", newline="", dir=path.parent, delete=False
     ) as temporary_file:
-        writer = csv.DictWriter(temporary_file, fieldnames=["date", "location", "url"])
+        writer = csv.DictWriter(
+            temporary_file,
+            fieldnames=["date", "name", "location", "url"],
+        )
         writer.writeheader()
         writer.writerows(events)
         temporary_path = Path(temporary_file.name)

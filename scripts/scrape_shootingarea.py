@@ -18,6 +18,7 @@ def parse_events(html, today):
         location_column=2,
         link_column=6,
         row_classes={"tab_as", "tab_bs"},
+        name_column=2,
     )
 
 

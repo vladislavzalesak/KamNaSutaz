@@ -33,6 +33,19 @@ class ParseEventsTests(unittest.TestCase):
         self.assertTrue(context.check_hostname)
         self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
 
+    def test_fetch_html_loads_squad_chain_without_disabling_tls(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = b"page"
+
+        with mock.patch.object(
+            scraper_common, "urlopen", return_value=response
+        ) as open_url:
+            self.assertEqual(fetch_html("https://squad.sk/"), "page")
+
+        context = open_url.call_args.kwargs["context"]
+        self.assertTrue(context.check_hostname)
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+
     def test_los_sk_reads_single_digit_day_and_month(self):
         self.assertEqual(parse_date("5.2.2027"), date(2027, 2, 5))
 
@@ -47,7 +60,12 @@ class ParseEventsTests(unittest.TestCase):
 
             manifest = json.loads((root / "data" / "los-sk.json").read_text())
             self.assertRegex(manifest["file"], r"^los-sk_\d{8}T\d{12}Z\.csv$")
-            self.assertTrue((root / "data" / manifest["file"]).is_file())
+            csv_path = root / "data" / manifest["file"]
+            self.assertTrue(csv_path.is_file())
+            self.assertEqual(
+                csv_path.read_text(encoding="utf-8").splitlines()[0],
+                "date,name,location,url",
+            )
             self.assertTrue(manifest["last_successful_at"].endswith("Z"))
             self.assertEqual(manifest["last_run_status"], "success")
 
@@ -101,11 +119,13 @@ class ParseEventsTests(unittest.TestCase):
             [
                 {
                     "date": "2026-11-14",
+                    "name": "",
                     "location": "Dnes",
                     "url": "https://los-sk.sk/competition/3",
                 },
                 {
                     "date": "2027-02-05",
+                    "name": "",
                     "location": "Miesto, mesto",
                     "url": "https://los-sk.sk/competition/2",
                 },
@@ -132,6 +152,7 @@ class ParseEventsTests(unittest.TestCase):
             [
                 {
                     "date": "2026-12-05",
+                    "name": "Event name",
                     "location": "Vsetín, Czech Republic",
                     "url": "http://www.squad.sk/event",
                 }
@@ -155,6 +176,7 @@ class ParseEventsTests(unittest.TestCase):
             [
                 {
                     "date": "2026-12-05",
+                    "name": "Event name",
                     "location": "Strelnica, Trenčín",
                     "url": "https://www.shootingarea.eu/sk/match-area/info/123/event",
                 }
@@ -176,6 +198,7 @@ class ParseEventsTests(unittest.TestCase):
             [
                 {
                     "date": "2026-12-05",
+                    "name": "Match",
                     "location": "Vtáčie údolie",
                     "url": "https://new.sads.sk/index.php?option=com_kalendar&view=pretek&id=30",
                 }
@@ -210,11 +233,13 @@ class ParseEventsTests(unittest.TestCase):
             [
                 {
                     "date": "2026-12-05",
+                    "name": "Match",
                     "location": "First venue",
                     "url": "https://new.sads.sk/event?id=1",
                 },
                 {
                     "date": "2026-12-06",
+                    "name": "Match",
                     "location": "Second venue",
                     "url": "https://new.sads.sk/event?id=2",
                 },
