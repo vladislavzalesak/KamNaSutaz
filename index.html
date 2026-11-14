@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="sk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Prehľad nadchádzajúcich streleckých súťaží.">
+    <title>Kam na súťaž</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <p class="eyebrow">Kalendár podujatí</p>
+        <h1>Kam na súťaž</h1>
+        <p class="intro">Nadchádzajúce súťaže zoradené podľa dátumu.</p>
+      </header>
+
+      <section aria-labelledby="events-heading">
+        <h2 id="events-heading">Najbližšie súťaže</h2>
+        <p id="status" class="status" role="status" aria-live="polite">Načítavam súťaže…</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Dátum</th>
+                <th scope="col">Miesto</th>
+                <th scope="col"><span class="visually-hidden">Odkaz</span></th>
+              </tr>
+            </thead>
+            <tbody id="events"></tbody>
+          </table>
+        </div>
+      </section>
+      <footer>Údaje sa obnovujú každý deň.</footer>
+    </main>
+  </body>
+</html>
