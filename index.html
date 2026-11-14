@@ -27,6 +27,32 @@
         </section>
       </header>
 
+      <section class="event-controls" aria-label="Filtre súťaží">
+        <fieldset class="filter-group">
+          <legend>Zobraziť zdroje</legend>
+          <div id="source-filters" class="source-filters"></div>
+        </fieldset>
+        <fieldset class="filter-group">
+          <legend>Obdobie</legend>
+          <div
+            id="date-filters"
+            class="date-filters"
+            role="group"
+            aria-label="Filtrovať súťaže podľa obdobia"
+          >
+            <button class="date-filter-button" type="button" data-range="all" aria-pressed="true">
+              Všetky
+            </button>
+            <button class="date-filter-button" type="button" data-range="year" aria-pressed="false">
+              Tento rok
+            </button>
+            <button class="date-filter-button" type="button" data-range="30-days" aria-pressed="false">
+              Do 30 dní
+            </button>
+          </div>
+        </fieldset>
+      </section>
+
       <section aria-labelledby="events-heading">
         <h2 id="events-heading">Najbližšie súťaže</h2>
         <p id="status" class="status" role="status" aria-live="polite">Načítavam súťaže…</p>
