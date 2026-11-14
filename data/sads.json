@@ -1,7 +1,7 @@
 {
   "source_id": "sads",
-  "file": null,
-  "last_successful_at": null,
-  "last_attempted_at": null,
-  "last_run_status": "unknown"
+  "file": "sads_20261114T142007890562Z.csv",
+  "last_successful_at": "2026-11-14T14:20:07.890970Z",
+  "last_attempted_at": "2026-11-14T14:20:07.890970Z",
+  "last_run_status": "success"
 }
