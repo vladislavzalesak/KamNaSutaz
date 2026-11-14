@@ -27,7 +27,6 @@ const sources = [
 const eventsElement = document.querySelector("#events");
 const statusElement = document.querySelector("#status");
 const sourceStatusElement = document.querySelector("#source-status");
-const sourceFiltersElement = document.querySelector("#source-filters");
 const dateFiltersElement = document.querySelector("#date-filters");
 const feedbackButton = document.querySelector("#feedback-button");
 const enabledSources = new Map(sources.map((source) => [source.id, true]));
@@ -176,16 +175,41 @@ async function loadEvents() {
 
 function renderSourceStatus(loadedSources) {
   sourceStatusElement.replaceChildren();
-  sourceFiltersElement.replaceChildren();
   const week = 7 * 24 * 60 * 60 * 1000;
   for (const { source, manifest } of loadedSources) {
     const item = document.createElement("article");
     item.setAttribute("role", "listitem");
-    const link = document.createElement("a");
+    const details = document.createElement("div");
     const heading = document.createElement("div");
+    const identity = document.createElement("div");
     const name = document.createElement("h3");
     const state = document.createElement("p");
     const icon = document.createElement("img");
+    const actions = document.createElement("div");
+    const toggleButton = document.createElement("button");
+    const toggleTrack = document.createElement("span");
+    const visibilityIcon = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    const openEye = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "g",
+    );
+    const openEyeOutline = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    const openEyePupil = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "circle",
+    );
+    const closedEye = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "g",
+    );
+    const sourceLink = document.createElement("a");
+    const linkIcon = document.createElement("span");
     let status;
     if (
       manifest.last_run_status === "failed" &&
@@ -210,12 +234,9 @@ function renderSourceStatus(loadedSources) {
     }
 
     item.className = `source-card source-card--${status}`;
-    link.className = "source-card-link";
-    link.href = source.url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.setAttribute("aria-label", `Otvoriť stránku ${source.name}`);
+    details.className = "source-card-details";
     heading.className = "source-card-heading";
+    identity.className = "source-card-identity";
     name.className = "source-name";
     state.className = "source-state";
     icon.className = "source-icon";
@@ -224,8 +245,71 @@ function renderSourceStatus(loadedSources) {
     icon.loading = "lazy";
     icon.addEventListener("error", () => icon.remove());
     name.textContent = source.name;
-    heading.append(icon, name);
-    link.append(heading, state);
+    identity.append(icon, name);
+
+    let isEnabled = enabledSources.get(source.id) !== false;
+    actions.className = "source-card-actions";
+    toggleButton.className = "source-toggle-button";
+    toggleButton.type = "button";
+    toggleButton.setAttribute("aria-pressed", String(isEnabled));
+    toggleButton.setAttribute(
+      "aria-label",
+      `Zobrazovať súťaže zo zdroja ${source.name}`,
+    );
+    toggleTrack.className = "source-toggle-track";
+    toggleTrack.setAttribute("aria-hidden", "true");
+    visibilityIcon.classList.add("source-visibility-icon");
+    visibilityIcon.setAttribute("viewBox", "0 0 24 24");
+    visibilityIcon.setAttribute("aria-hidden", "true");
+    visibilityIcon.setAttribute("fill", "none");
+    visibilityIcon.setAttribute("stroke", "currentColor");
+    visibilityIcon.setAttribute("stroke-width", "2");
+    visibilityIcon.setAttribute("stroke-linecap", "round");
+    visibilityIcon.setAttribute("stroke-linejoin", "round");
+    openEye.classList.add("source-eye-open");
+    openEyeOutline.setAttribute(
+      "d",
+      "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z",
+    );
+    openEyePupil.setAttribute("cx", "12");
+    openEyePupil.setAttribute("cy", "12");
+    openEyePupil.setAttribute("r", "3");
+    openEye.append(openEyeOutline, openEyePupil);
+    closedEye.classList.add("source-eye-closed");
+    for (const [tag, path] of [
+      ["path", "M10.58 10.58a2 2 0 0 0 2.83 2.83"],
+      ["path", "M16.68 16.68A10.7 10.7 0 0 1 12 18c-5 0-9-5-10-6 0 0 1.8-2.5 4-4.3"],
+      ["path", "M9.88 5.09A10.8 10.8 0 0 1 12 5c5 0 9 5 10 7 0 0-.8 1.1-2.1 2.3"],
+      ["path", "m2 2 20 20"],
+    ]) {
+      const element = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        tag,
+      );
+      element.setAttribute("d", path);
+      closedEye.append(element);
+    }
+    visibilityIcon.append(openEye, closedEye);
+    toggleButton.append(toggleTrack, visibilityIcon);
+    toggleButton.addEventListener("click", () => {
+      isEnabled = !isEnabled;
+      enabledSources.set(source.id, isEnabled);
+      toggleButton.setAttribute("aria-pressed", String(isEnabled));
+      renderEventList();
+    });
+
+    sourceLink.className = "source-link-button";
+    sourceLink.href = source.url;
+    sourceLink.target = "_blank";
+    sourceLink.rel = "noopener noreferrer";
+    sourceLink.setAttribute("aria-label", `Otvoriť stránku ${source.name}`);
+    sourceLink.title = `Otvoriť stránku ${source.name}`;
+    linkIcon.setAttribute("aria-hidden", "true");
+    linkIcon.textContent = "↗";
+    sourceLink.append(linkIcon);
+    actions.append(toggleButton, sourceLink);
+    heading.append(identity);
+    details.append(heading, state);
 
     if (manifest.last_successful_at) {
       const lastSuccess = document.createElement("p");
@@ -237,7 +321,7 @@ function renderSourceStatus(loadedSources) {
       }).format(new Date(manifest.last_successful_at));
       lastSuccess.className = "source-time";
       lastSuccess.append("Naposledy úspešne: ", time);
-      link.append(lastSuccess);
+      details.append(lastSuccess);
     }
 
     if (manifest.last_run_status === "failed" && manifest.last_attempted_at) {
@@ -250,36 +334,11 @@ function renderSourceStatus(loadedSources) {
       }).format(new Date(manifest.last_attempted_at));
       lastFailure.className = "source-time";
       lastFailure.append("Posledný pokus: ", time);
-      link.append(lastFailure);
+      details.append(lastFailure);
     }
 
-    item.append(link);
+    item.append(details, actions);
     sourceStatusElement.append(item);
-
-    const filter = document.createElement("label");
-    const checkbox = document.createElement("input");
-    const toggle = document.createElement("span");
-    const filterIcon = document.createElement("img");
-    const filterName = document.createElement("span");
-
-    filter.className = "source-filter";
-    checkbox.className = "visually-hidden";
-    checkbox.type = "checkbox";
-    checkbox.checked = enabledSources.get(source.id) !== false;
-    checkbox.setAttribute("aria-label", `Zobraziť súťaže zo zdroja ${source.name}`);
-    toggle.className = "source-switch-track";
-    toggle.setAttribute("aria-hidden", "true");
-    filterIcon.className = "source-filter-icon";
-    filterIcon.src = source.icon;
-    filterIcon.alt = "";
-    filterName.className = "source-filter-name";
-    filterName.textContent = source.name;
-    checkbox.addEventListener("change", () => {
-      enabledSources.set(source.id, checkbox.checked);
-      renderEventList();
-    });
-    filter.append(checkbox, toggle, filterIcon, filterName);
-    sourceFiltersElement.append(filter);
   }
 }
 
