@@ -345,6 +345,7 @@ function renderSourceStatus(loadedSources) {
 }
 
 const duplicateThreshold = 0.88;
+const debugDuplicateThreshold = 0.7;
 const nameStopWords = new Set([
   "competition",
   "kolo",
@@ -416,6 +417,20 @@ function diceSimilarity(left, right) {
   return (2 * sharedTokens) / (left.size + right.size);
 }
 
+function eventNameForMatching(event) {
+  const name = String(event.name ?? "").trim();
+  if (name) {
+    return name;
+  }
+
+  const path = new URL(event.url, window.location.href).pathname;
+  const slug = path.split("/").filter(Boolean).pop() || "";
+  if (!slug || /^\d+$/.test(slug) || /^index(?:\.php)?$/i.test(slug)) {
+    return "";
+  }
+  return decodeURIComponent(slug).replace(/[-_]+/g, " ");
+}
+
 function duplicateProbability(left, right) {
   const leftDate = eventDateKey(left.date);
   const rightDate = eventDateKey(right.date);
@@ -425,8 +440,8 @@ function duplicateProbability(left, right) {
 
   const year = Number((leftDate || rightDate || "").slice(0, 4)) || null;
   const nameScore = diceSimilarity(
-    eventTokens(left.name, nameStopWords, year),
-    eventTokens(right.name, nameStopWords, year),
+    eventTokens(eventNameForMatching(left), nameStopWords, year),
+    eventTokens(eventNameForMatching(right), nameStopWords, year),
   );
   const locationScore = diceSimilarity(
     eventTokens(left.location, locationStopWords),
@@ -460,7 +475,7 @@ function duplicateProbability(left, right) {
   return Math.round(score * 100) / 100;
 }
 
-function findDuplicateGroups(events) {
+function findDuplicateGroups(events, threshold) {
   const eventsByDate = new Map();
   for (const event of events) {
     const date = eventDateKey(event.date);
@@ -490,7 +505,7 @@ function findDuplicateGroups(events) {
         const scores = group.events.map((member) =>
           duplicateProbability(event, member),
         );
-        if (scores.some((score) => score < duplicateThreshold)) {
+        if (scores.some((score) => score < threshold)) {
           continue;
         }
 
@@ -551,8 +566,14 @@ function renderEventList() {
     (eventDateKey(left.date) || "").localeCompare(eventDateKey(right.date) || ""),
   );
   const duplicateInfo = new Map();
+  let duplicateGroups = [];
   if (selectedDuplicateMode !== "none") {
-    findDuplicateGroups(events).forEach((group, index) => {
+    const threshold =
+      selectedDuplicateMode === "hide"
+        ? duplicateThreshold
+        : debugDuplicateThreshold;
+    duplicateGroups = findDuplicateGroups(events, threshold);
+    duplicateGroups.forEach((group, index) => {
       const info = {
         id: index + 1,
         confidence: group.confidence,
@@ -631,7 +652,21 @@ function renderEventList() {
   });
 
   eventsElement.append(...rows);
-  statusElement.textContent = "";
+  if (selectedDuplicateMode === "show") {
+    statusElement.textContent = duplicateGroups.length
+      ? `Nájdené skupiny možných duplicít: ${duplicateGroups.length}.`
+      : "V aktuálnych údajoch sa nenašli možné duplicity.";
+  } else if (selectedDuplicateMode === "hide") {
+    const hiddenCount = duplicateGroups.reduce(
+      (count, group) => count + group.events.length - 1,
+      0,
+    );
+    statusElement.textContent = hiddenCount
+      ? `Skrytých záznamov: ${hiddenCount}; skupín duplicít: ${duplicateGroups.length}.`
+      : "Nenašli sa duplicity s mierou zhody aspoň 88 %.";
+  } else {
+    statusElement.textContent = "";
+  }
 }
 
 dateFiltersElement.addEventListener("click", (event) => {
