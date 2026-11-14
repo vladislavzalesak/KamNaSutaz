@@ -17,5 +17,7 @@ sa zapisuje ako commit pri každom úspešnom spustení. Stránka číta zoznam 
 súborov v `app.js`; pri pridaní ďalšieho zdroja doplňte jeho cestu do
 `csvFiles`.
 
-Scraper používa iba Python štandardnú knižnicu a pri zmene očakávanej štruktúry
-zdrojovej stránky skončí chybou namiesto prepísania údajov neúplným výsledkom.
+LOS-SK zobrazuje dátumy ako `DD.MM.YYYY`; scraper ich normalizuje na `YYYY-MM-DD`
+v CSV. Scraper používa iba Python štandardnú knižnicu a pri zmene očakávanej
+štruktúry zdrojovej stránky skončí chybou namiesto prepísania údajov neúplným
+výsledkom.

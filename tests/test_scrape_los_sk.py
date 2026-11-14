@@ -11,9 +11,9 @@ class ParseEventsTests(unittest.TestCase):
     def test_extracts_only_upcoming_events_and_sorts_them(self):
         html = """
         <table id="cal2"><tbody>
-          <tr><td></td><td><font>2027-02-20</font><a href="/competition/2">20.2.2027</a></td><td>Miesto, mesto</td></tr>
-          <tr><td></td><td><font>2026-11-13</font><a href="/competition/1">13.11.2026</a></td><td>Minulá súťaž</td></tr>
-          <tr><td></td><td><font>2026-11-14</font><a href="/competition/3">14.11.2026</a></td><td>Dnes</td></tr>
+          <tr><td></td><td><a href="/competition/2">20.02.2027</a></td><td>Miesto, mesto</td></tr>
+          <tr><td></td><td><a href="/competition/1">13.11.2026</a></td><td>Minulá súťaž</td></tr>
+          <tr><td></td><td><a href="/competition/3">14.11.2026</a></td><td>Dnes</td></tr>
         </tbody></table>
         """
 

@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 SOURCE_URL = "https://los-sk.sk/index.php/competition/index"
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "los-sk.csv"
-DATE_PATTERN = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+DATE_PATTERN = re.compile(r"\b\d{1,2}\.\d{1,2}\.\d{4}\b")
 
 
 class CompetitionTableParser(HTMLParser):
@@ -63,9 +63,9 @@ class CompetitionTableParser(HTMLParser):
 
         date_match = DATE_PATTERN.search(self.current_row[1][0])
         if date_match is None:
-            raise ValueError("Found a competition row without an ISO date.")
+            raise ValueError("Found a competition row without a DD.MM.YYYY date.")
 
-        event_date = date.fromisoformat(date_match.group())
+        event_date = datetime.strptime(date_match.group(), "%d.%m.%Y").date()
         location = self.current_row[2][0]
         links = self.current_row[1][1]
         if not location or not links:
