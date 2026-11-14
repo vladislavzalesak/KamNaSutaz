@@ -19,6 +19,8 @@ zdroj ukazuje na najnovší CSV a uchováva čas posledného úspešného behu a
 posledného pokusu; stránka načíta iba najnovšie CSV.
 Každý zdroj má vlastnú lokálnu SVG ikonu v `assets/icons/`; stránka nenačítava
 favicony ani obrázky z externých serverov.
+Workflow `Scrape all event sources` umožňuje ručne spustiť všetky štyri
+scrapery naraz; denné aktualizácie zostávajú samostatné pre každý zdroj.
 
 Stavové boxy sú zelené pri úspechu v poslednom týždni, žlté pri staršom
 úspešnom behu bez novšieho zlyhania a červené, ak posledný pokus zlyhal.
