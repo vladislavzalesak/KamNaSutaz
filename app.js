@@ -11,6 +11,17 @@ const sources = [
 const eventsElement = document.querySelector("#events");
 const statusElement = document.querySelector("#status");
 const sourceStatusElement = document.querySelector("#source-status");
+const feedbackButton = document.querySelector("#feedback-button");
+
+feedbackButton.addEventListener("click", () => {
+  const address = [
+    118, 108, 97, 100, 105, 115, 108, 97, 118, 46, 122, 97, 108, 101, 115, 97,
+    107, 64, 103, 109, 97, 105, 108, 46, 99, 111, 109,
+  ]
+    .map((character) => String.fromCharCode(character))
+    .join("");
+  window.location.href = `mailto:${address}`;
+});
 
 function parseCsv(text) {
   const rows = [];

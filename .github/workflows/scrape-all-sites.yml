@@ -7,8 +7,11 @@ permissions:
   contents: write
 
 jobs:
-  scrape:
+  scrape-los-sk:
     runs-on: ubuntu-latest
+    outputs:
+      scrape_outcome: ${{ steps.scrape.outcome }}
+      upload_outcome: ${{ steps.upload.outcome }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -18,28 +21,145 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install scraper dependencies
+        run: python -m pip install -r requirements.txt
+
       - name: Scrape LOS-SK
-        id: los_sk
+        id: scrape
         continue-on-error: true
         run: python scripts/scrape_los_sk.py
 
+      - name: Upload LOS-SK data
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: los-sk-data
+          path: |
+            data/los-sk.json
+            data/los-sk_*.csv
+          if-no-files-found: warn
+
+  scrape-squad:
+    runs-on: ubuntu-latest
+    outputs:
+      scrape_outcome: ${{ steps.scrape.outcome }}
+      upload_outcome: ${{ steps.upload.outcome }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scraper dependencies
+        run: python -m pip install -r requirements.txt
+
       - name: Scrape SQUAD
-        id: squad
+        id: scrape
         continue-on-error: true
         run: python scripts/scrape_squad.py
 
+      - name: Upload SQUAD data
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: squad-data
+          path: |
+            data/squad.json
+            data/squad_*.csv
+          if-no-files-found: warn
+
+  scrape-shootingarea:
+    runs-on: ubuntu-latest
+    outputs:
+      scrape_outcome: ${{ steps.scrape.outcome }}
+      upload_outcome: ${{ steps.upload.outcome }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scraper dependencies
+        run: python -m pip install -r requirements.txt
+
       - name: Scrape Shooting Area
-        id: shootingarea
+        id: scrape
         continue-on-error: true
         run: python scripts/scrape_shootingarea.py
 
+      - name: Upload Shooting Area data
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shootingarea-data
+          path: |
+            data/shootingarea.json
+            data/shootingarea_*.csv
+          if-no-files-found: warn
+
+  scrape-sads:
+    runs-on: ubuntu-latest
+    outputs:
+      scrape_outcome: ${{ steps.scrape.outcome }}
+      upload_outcome: ${{ steps.upload.outcome }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scraper dependencies
+        run: python -m pip install -r requirements.txt
+
       - name: Scrape SADS
-        id: sads
+        id: scrape
         continue-on-error: true
         run: python scripts/scrape_sads.py
 
-      - name: Commit scrape results and statuses
+      - name: Upload SADS data
+        id: upload
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sads-data
+          path: |
+            data/sads.json
+            data/sads_*.csv
+          if-no-files-found: warn
+
+  commit-results:
+    if: always()
+    needs:
+      - scrape-los-sk
+      - scrape-squad
+      - scrape-shootingarea
+      - scrape-sads
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download scraper results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: "*-data"
+          path: data
+          merge-multiple: true
+
+      - name: Commit scrape results and statuses
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -50,15 +170,19 @@ jobs:
       - name: Report scraper failures
         if: always()
         env:
-          LOS_SK_RESULT: ${{ steps.los_sk.outcome }}
-          SQUAD_RESULT: ${{ steps.squad.outcome }}
-          SHOOTINGAREA_RESULT: ${{ steps.shootingarea.outcome }}
-          SADS_RESULT: ${{ steps.sads.outcome }}
+          LOS_SK_SCRAPE: ${{ needs.scrape-los-sk.outputs.scrape_outcome }}
+          LOS_SK_UPLOAD: ${{ needs.scrape-los-sk.outputs.upload_outcome }}
+          SQUAD_SCRAPE: ${{ needs.scrape-squad.outputs.scrape_outcome }}
+          SQUAD_UPLOAD: ${{ needs.scrape-squad.outputs.upload_outcome }}
+          SHOOTINGAREA_SCRAPE: ${{ needs.scrape-shootingarea.outputs.scrape_outcome }}
+          SHOOTINGAREA_UPLOAD: ${{ needs.scrape-shootingarea.outputs.upload_outcome }}
+          SADS_SCRAPE: ${{ needs.scrape-sads.outputs.scrape_outcome }}
+          SADS_UPLOAD: ${{ needs.scrape-sads.outputs.upload_outcome }}
         run: |
-          if [[ "$LOS_SK_RESULT" != "success" || \
-                "$SQUAD_RESULT" != "success" || \
-                "$SHOOTINGAREA_RESULT" != "success" || \
-                "$SADS_RESULT" != "success" ]]; then
-            echo "One or more event scrapers failed." >&2
+          if [[ "$LOS_SK_SCRAPE" != "success" || "$LOS_SK_UPLOAD" != "success" || \
+                "$SQUAD_SCRAPE" != "success" || "$SQUAD_UPLOAD" != "success" || \
+                "$SHOOTINGAREA_SCRAPE" != "success" || "$SHOOTINGAREA_UPLOAD" != "success" || \
+                "$SADS_SCRAPE" != "success" || "$SADS_UPLOAD" != "success" ]]; then
+            echo "One or more event scrapers failed in this run." >&2
             exit 1
           fi
