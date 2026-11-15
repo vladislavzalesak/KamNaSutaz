@@ -346,6 +346,7 @@ function renderSourceStatus(loadedSources) {
 
 const duplicateThreshold = 0.88;
 const debugDuplicateThreshold = 0.7;
+const duplicateColorCount = 6;
 const nameStopWords = new Set([
   "competition",
   "kolo",
@@ -625,7 +626,8 @@ function renderEventList() {
     if (selectedDuplicateMode === "show" && duplicate) {
       const badge = document.createElement("span");
       const percentage = Math.round(duplicate.confidence * 100);
-      badge.className = "duplicate-badge";
+      const colorIndex = ((duplicate.id - 1) % duplicateColorCount) + 1;
+      badge.className = `duplicate-badge duplicate-badge--color-${colorIndex}`;
       badge.textContent = `Možná duplicita #${duplicate.id} · ${percentage} %`;
       nameCell.append(" ", badge);
     }
