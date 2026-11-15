@@ -32,7 +32,7 @@ const duplicateFiltersElement = document.querySelector("#duplicate-filters");
 const feedbackButton = document.querySelector("#feedback-button");
 const enabledSources = new Map(sources.map((source) => [source.id, true]));
 let selectedDateRange = "all";
-let selectedDuplicateMode = "none";
+let selectedDuplicateMode = "show";
 let allEvents = [];
 
 feedbackButton.addEventListener("click", () => {
