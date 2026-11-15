@@ -1,8 +1,6 @@
 name: Update Shooting Area events
 
 on:
-  schedule:
-    - cron: "27 4 * * *"
   workflow_dispatch:
 
 permissions:
