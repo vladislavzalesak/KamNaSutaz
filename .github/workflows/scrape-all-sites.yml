@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: v1.0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -49,6 +51,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: v1.0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -81,6 +85,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: v1.0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -113,6 +119,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: v1.0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -148,6 +156,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: v1.0
 
       - name: Download scraper results
         uses: actions/download-artifact@v4
@@ -163,7 +173,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A -- data/
           git commit --allow-empty -m "Update event data from all sources"
-          git push
+          git push origin HEAD:v1.0
 
       - name: Report scraper failures
         if: always()
