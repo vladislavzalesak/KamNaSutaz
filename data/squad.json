@@ -1,7 +1,7 @@
 {
   "source_id": "squad",
-  "file": null,
-  "last_successful_at": null,
-  "last_attempted_at": "2026-11-14T14:20:03.890912Z",
-  "last_run_status": "failed"
+  "file": "squad_20261115T074253528759Z.csv",
+  "last_successful_at": "2026-11-15T07:42:53.529102Z",
+  "last_attempted_at": "2026-11-15T07:42:53.529102Z",
+  "last_run_status": "success"
 }
