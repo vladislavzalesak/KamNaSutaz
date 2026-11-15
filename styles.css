@@ -157,13 +157,49 @@ footer {
   display: inline-block;
   margin-left: 0.4rem;
   padding: 0.15rem 0.4rem;
-  border: 1px solid #eadca6;
+  border: 1px solid var(--duplicate-border, #eadca6);
   border-radius: 999px;
-  background: #fff8dc;
-  color: #66520a;
+  background: var(--duplicate-background, #fff8dc);
+  color: var(--duplicate-foreground, #66520a);
   font-size: 0.72rem;
   font-weight: 650;
   white-space: nowrap;
+}
+
+.duplicate-badge--color-1 {
+  --duplicate-border: #aec6f5;
+  --duplicate-background: #e8f0fe;
+  --duplicate-foreground: #234b8a;
+}
+
+.duplicate-badge--color-2 {
+  --duplicate-border: #abd5b5;
+  --duplicate-background: #e7f5ea;
+  --duplicate-foreground: #245c32;
+}
+
+.duplicate-badge--color-3 {
+  --duplicate-border: #d2b8ea;
+  --duplicate-background: #f2eafb;
+  --duplicate-foreground: #573779;
+}
+
+.duplicate-badge--color-4 {
+  --duplicate-border: #f0c08e;
+  --duplicate-background: #fff0e2;
+  --duplicate-foreground: #75430f;
+}
+
+.duplicate-badge--color-5 {
+  --duplicate-border: #a4d6d1;
+  --duplicate-background: #e3f4f2;
+  --duplicate-foreground: #155b57;
+}
+
+.duplicate-badge--color-6 {
+  --duplicate-border: #e8b3c5;
+  --duplicate-background: #fce9f0;
+  --duplicate-foreground: #7b2c4a;
 }
 
 .source-card {
