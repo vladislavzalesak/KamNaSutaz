@@ -337,9 +337,12 @@ function renderSourceStatus(loadedSources) {
     sourceLink.rel = "noopener noreferrer";
     sourceLink.setAttribute("aria-label", `Otvoriť stránku ${source.name}`);
     sourceLink.title = `Otvoriť stránku ${source.name}`;
+    linkIcon.className = "source-link-icon";
     linkIcon.setAttribute("aria-hidden", "true");
     linkIcon.textContent = "↗";
-    sourceLink.append(linkIcon);
+    const linkLabel = document.createElement("span");
+    linkLabel.textContent = "Otvoriť";
+    sourceLink.append(linkIcon, linkLabel);
     actions.append(toggleButton, sourceLink);
     heading.append(identity);
     details.append(heading, state);

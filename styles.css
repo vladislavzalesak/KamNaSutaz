@@ -354,15 +354,16 @@ footer {
   min-height: 2.75rem;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
-  padding: 0.25rem;
-  border: 1px solid #dce5de;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid #17613c;
   border-radius: 0.5rem;
-  background: #fff;
-  color: #17613c;
-  font-size: 0.72rem;
-  font-weight: 650;
-  line-height: 1.15;
+  background: #17613c;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(23, 97, 60, 0.25);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
   text-align: center;
   text-decoration: none;
 }
@@ -383,14 +384,15 @@ footer {
   display: initial;
 }
 
-.source-link-button > span:first-child {
+.source-link-icon {
   font-size: 1.15rem;
+  line-height: 1;
 }
 
 .source-link-button:hover {
-  border-color: #17613c;
-  background: #f3f6f3;
-  color: #0c4227;
+  border-color: #0c4227;
+  background: #0c4227;
+  color: #fff;
 }
 
 .source-name {
@@ -429,10 +431,10 @@ footer {
   align-items: center;
   gap: 0.35rem;
   padding: 0.25rem 0.45rem;
-  border: 1px solid #17613c;
+  border: 1px solid #b7d9c0;
   border-radius: 0.45rem;
-  background: #17613c;
-  color: #fff;
+  background: #e8f4eb;
+  color: #174f32;
   font-size: 0.8rem;
   text-decoration: none;
   white-space: normal;
@@ -440,15 +442,14 @@ footer {
 }
 
 .event-source-link:hover {
-  border-color: #0c4227;
-  background: #0c4227;
-  color: #fff;
+  border-color: #83b995;
+  background: #d8ecde;
+  color: #103f27;
 }
 
 .event-source-link .source-icon {
   width: 20px;
   height: 20px;
-  filter: brightness(0) invert(1);
 }
 
 .competition-date-cell {
