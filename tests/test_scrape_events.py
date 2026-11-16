@@ -5,10 +5,12 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from urllib.error import HTTPError
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import scraper_common
+import restore_pages_data
 from scraper_common import fetch_html, parse_date
 from scrape_los_sk import parse_events as parse_los_sk
 from scrape_sads import parse_events as parse_sads
@@ -245,6 +247,72 @@ class ParseEventsTests(unittest.TestCase):
                 },
             ],
         )
+
+
+class RestorePagesDataTests(unittest.TestCase):
+    def test_restores_only_manifest_referenced_csv(self):
+        manifest = {
+            "source_id": "los-sk",
+            "file": "los-sk_20261115T074253077269Z.csv",
+        }
+        csv_content = b"date,name,location,url\n"
+        with tempfile.TemporaryDirectory() as directory:
+            data_dir = Path(directory)
+            with (
+                mock.patch.object(restore_pages_data, "SOURCES", ("los-sk",)),
+                mock.patch.object(
+                    restore_pages_data,
+                    "fetch_bytes",
+                    side_effect=[json.dumps(manifest).encode(), csv_content],
+                ) as fetch,
+            ):
+                restore_pages_data.restore_pages_data(
+                    "https://example.test/KamNaSutaz", data_dir
+                )
+
+            self.assertEqual(
+                (data_dir / "los-sk.json").read_bytes(),
+                json.dumps(manifest).encode(),
+            )
+            self.assertEqual(
+                (data_dir / manifest["file"]).read_bytes(), csv_content
+            )
+            self.assertEqual(
+                [call.args[0] for call in fetch.call_args_list],
+                [
+                    "https://example.test/KamNaSutaz/data/los-sk.json",
+                    f"https://example.test/KamNaSutaz/data/{manifest['file']}",
+                ],
+            )
+
+    def test_missing_published_manifest_is_allowed_for_first_deployment(self):
+        not_found = HTTPError(
+            "https://example.test/data/los-sk.json", 404, "Not Found", {}, None
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(
+                restore_pages_data, "fetch_bytes", side_effect=not_found
+            ):
+                restore_pages_data.restore_pages_data(
+                    "https://example.test/KamNaSutaz", Path(directory)
+                )
+
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_rejects_unexpected_csv_filename(self):
+        manifest = {"source_id": "los-sk", "file": "../untrusted.csv"}
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(
+                restore_pages_data,
+                "fetch_bytes",
+                return_value=json.dumps(manifest).encode(),
+            ) as fetch:
+                with self.assertRaisesRegex(ValueError, "Invalid CSV filename"):
+                    restore_pages_data.restore_pages_data(
+                        "https://example.test/KamNaSutaz", Path(directory)
+                    )
+
+            fetch.assert_called_once()
 
 
 if __name__ == "__main__":

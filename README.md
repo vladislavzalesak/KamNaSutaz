@@ -1,26 +1,40 @@
 # KamNaSutaz
 
-Statický prehľad nadchádzajúcich súťaží. Stránka načíta CSV súbory v `data/`,
-zoradí udalosti podľa dátumu a zobrazí odkaz na detail každej súťaže.
+Statický prehľad nadchádzajúcich súťaží. Stránka načíta zverejnené CSV súbory
+z `data/`, zoradí udalosti podľa dátumu a zobrazí odkaz na detail každej súťaže.
 
 ## Spustenie
 
-Otvorte `index.html` cez statický webový server alebo publikujte koreň
-repozitára cez GitHub Pages. Na lokálne testovanie môžete použiť napríklad
-`python -m http.server`.
+GitHub Pages publikuje stránku aj aktuálne dáta z GitHub Actions. V nastaveniach
+repozitára v časti **Settings → Pages → Build and deployment** nastavte zdroj
+na **GitHub Actions**.
+
+Na lokálne testovanie nainštalujte závislosti, spustite scrapery a následne
+statický server:
+
+```sh
+python -m pip install --upgrade -r requirements.txt
+python scripts/scrape_los_sk.py
+python scripts/scrape_squad.py
+python scripts/scrape_shootingarea.py
+python scripts/scrape_sads.py
+python -m http.server
+```
 
 ## Automatická aktualizácia
 
-Každý zdroj má samostatný scraper a GitHub Actions workflow, ktorý beží denne
-a možno ho spustiť aj ručne. Každé úspešné spustenie uloží samostatný CSV súbor
-v `data/`, ktorého názov obsahuje identifikátor zdroja a UTC čas scrape-u
-(napríklad `los-sk_20261114T041700000000Z.csv`). Stabilný JSON súbor pre každý
-zdroj ukazuje na najnovší CSV a uchováva čas posledného úspešného behu aj stav
-posledného pokusu; stránka načíta iba najnovšie CSV.
+Workflow `Scrape and deploy event calendar` denne spustí všetky štyri scrapery
+a možno ho spustiť aj ručne. Dáta sa zahrnú do GitHub Pages artefaktu a
+nasadia spolu so stránkou; scraper ich už necommitne do repozitára. Pred
+scrape-om workflow načíta posledné zverejnené manifesty a CSV súbory, takže pri
+zlyhaní zdroja zostanú jeho posledné úspešné dáta dostupné. Každý manifest
+uchováva čas posledného úspešného behu aj stav posledného pokusu; stránka
+načíta iba najnovší CSV pre každý zdroj. Staršie CSV snímky sa v nasadení
+neuchovávajú.
+Pre plánované spustenia musí byť workflow v predvolenej vetve repozitára;
+scrape samotný používa vetvu `v1.0`.
 Každý zdroj má vlastnú lokálnu SVG ikonu v `assets/icons/`; stránka nenačítava
 favicony ani obrázky z externých serverov.
-Workflow `Scrape all event sources` umožňuje ručne spustiť všetky štyri
-scrapery naraz; denné aktualizácie zostávajú samostatné pre každý zdroj.
 
 Stavové boxy sú zelené pri úspechu v poslednom týždni, žlté pri staršom
 úspešnom behu bez novšieho zlyhania a červené, ak posledný pokus zlyhal.
