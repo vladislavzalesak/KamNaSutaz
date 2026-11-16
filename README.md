@@ -1,7 +1,8 @@
 # KamNaSutaz
 
 Statický prehľad nadchádzajúcich súťaží. Stránka načíta zverejnené CSV súbory
-z `data/`, zoradí udalosti podľa dátumu a zobrazí odkaz na detail každej súťaže.
+z `data/`, zoradí udalosti podľa dátumu, zobrazí typ súťaže, ak ho zdroj uvádza,
+a spojí duplicity so zachovaním odkazov na všetky zdroje.
 
 ## Spustenie
 
@@ -21,6 +22,10 @@ python scripts/scrape_sads.py
 python -m http.server
 ```
 
+Lokálny náhľad testovacieho rozhrania otvoríte na
+`http://localhost:8000/?debug=1`. Použije sa lokálny priečinok `debug-data/`,
+ktorý je ignorovaný Gitom; režim sa zapne iba na localhoste.
+
 ## Automatická aktualizácia
 
 Workflow `Scrape and deploy event calendar` denne spustí všetky štyri scrapery
@@ -31,6 +36,11 @@ zlyhaní zdroja zostanú jeho posledné úspešné dáta dostupné. Každý mani
 uchováva čas posledného úspešného behu aj stav posledného pokusu; stránka
 načíta iba najnovší CSV pre každý zdroj. Staršie CSV snímky sa v nasadení
 neuchovávajú.
+Prahy zoskupovania duplicít sú v `duplicate-thresholds.json`. Workflow
+`Configure duplicate thresholds` v GitHub Actions prijíma percentá pre možné a
+prísne zhody (0–100), overí ich a nasadí nový konfiguračný súbor aj so
+súčasnými dátami na GitHub Pages. Prísny prah musí byť aspoň taký vysoký ako
+prah možných zhôd. Nasledujúce denné nasadenia zachovajú aktuálnu konfiguráciu.
 Pre plánované spustenia musí byť workflow v predvolenej vetve repozitára;
 scrape samotný používa vetvu `v1.0`.
 Každý zdroj má vlastnú lokálnu SVG ikonu v `assets/icons/`; stránka nenačítava
@@ -42,16 +52,19 @@ Zobrazený čas je vždy čas posledného úspešného behu (nie zmena obsahu CS
 pri chybe sa navyše zobrazí čas neúspešného pokusu.
 
 Podporované zdroje sú LOS-SK, SQUAD, Shooting Area a SADS. CSV obsahuje dátum,
-názov preteku (ak ho zdroj poskytuje), miesto a odkaz. LOS-SK dátumy číta vo
-formáte `D.M.YYYY` (ak sú hodnoty dvojciferné, aj `DD.MM.YYYY`) a zapisuje ich
-ako `YYYY-MM-DD` do CSV. Rovnaký dátum a miesto sa pri zobrazení považujú za
-možnú duplicitu a zobrazia sa iba raz. Scrapery používajú Python štandardnú
-knižnicu, `certifi` na doplnenie CA certifikátov pri overovaní HTTPS a `tzdata`
-pre systémy bez systémovej databázy časových pásiem. SQUAD momentálne
-neposiela celý TLS certifikačný reťazec; `scripts/certs/squad-ca-chain.pem`
-dopĺňa reťazec publikovaný Let’s Encrypt a TLS overovanie zostáva zapnuté. Ak
-SQUAD zmení certifikačnú autoritu, tento doplnkový reťazec bude treba obnoviť.
-Závislosti sa inštalujú príkazom
+názov preteku (ak ho zdroj poskytuje), miesto, odkaz a voliteľný typ súťaže.
+Typ sa ponechá prázdny, ak ho nemožno z detailu spoľahlivo určiť. Duplicitné
+záznamy sa zoskupujú podľa dátumu a podobnosti názvu a miesta; pri skupine
+zostáva odkaz na každý zdroj. Predvolený režim zoskupuje možné zhody od 65 %,
+prísnejší režim vyžaduje aspoň 88 % a „Samostatné riadky“ zobrazí jednotlivé
+záznamy bez zoskupenia. LOS-SK dátumy číta vo formáte `D.M.YYYY` (ak sú hodnoty
+dvojciferné, aj `DD.MM.YYYY`) a zapisuje ich ako `YYYY-MM-DD` do CSV.
+Scrapery používajú Python štandardnú knižnicu, `certifi` na doplnenie CA
+certifikátov pri overovaní HTTPS a `tzdata` pre systémy bez systémovej databázy
+časových pásiem. SQUAD momentálne neposiela celý TLS certifikačný reťazec;
+`scripts/certs/squad-ca-chain.pem` dopĺňa reťazec publikovaný Let’s Encrypt a
+TLS overovanie zostáva zapnuté. Ak SQUAD zmení certifikačnú autoritu, tento
+doplnkový reťazec bude treba obnoviť. Závislosti sa inštalujú príkazom
 `python -m pip install --upgrade -r requirements.txt`. Pri zmene očakávanej
 štruktúry zdrojovej stránky scrapery skončia chybou namiesto prepísania údajov
 neúplným výsledkom.

@@ -1,4 +1,4 @@
-"""Restore the last published data snapshot before running the scrapers."""
+"""Restore published data and duplicate thresholds before running the scrapers."""
 
 import json
 import re
@@ -8,8 +8,11 @@ from urllib.error import HTTPError
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
+from duplicate_thresholds import validate_config
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ("los-sk", "squad", "shootingarea", "sads")
+THRESHOLDS_FILENAME = "duplicate-thresholds.json"
 
 
 def fetch_bytes(url):
@@ -18,7 +21,11 @@ def fetch_bytes(url):
         return response.read()
 
 
-def restore_pages_data(base_url, data_dir=ROOT / "data"):
+def restore_pages_data(
+    base_url,
+    data_dir=ROOT / "data",
+    thresholds_path=ROOT / THRESHOLDS_FILENAME,
+):
     base_url = f"{base_url.rstrip('/')}/"
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -48,6 +55,17 @@ def restore_pages_data(base_url, data_dir=ROOT / "data"):
         if csv_bytes is not None:
             (data_dir / filename).write_bytes(csv_bytes)
         (data_dir / f"{source_id}.json").write_bytes(manifest_bytes)
+
+    thresholds_url = urljoin(base_url, THRESHOLDS_FILENAME)
+    try:
+        thresholds_bytes = fetch_bytes(thresholds_url)
+    except HTTPError as error:
+        if error.code == 404:
+            return
+        raise
+
+    validate_config(json.loads(thresholds_bytes.decode("utf-8")))
+    thresholds_path.write_bytes(thresholds_bytes)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,14 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import scraper_common
 import restore_pages_data
-from scraper_common import fetch_html, parse_date
+import duplicate_thresholds
+from scraper_common import (
+    classify_competition_type,
+    enrich_event_types,
+    fetch_html,
+    parse_date,
+    write_events,
+)
 from scrape_los_sk import parse_events as parse_los_sk
 from scrape_sads import parse_events as parse_sads
 from scrape_shootingarea import parse_events as parse_shootingarea
@@ -66,10 +73,183 @@ class ParseEventsTests(unittest.TestCase):
             self.assertTrue(csv_path.is_file())
             self.assertEqual(
                 csv_path.read_text(encoding="utf-8").splitlines()[0],
-                "date,name,location,url",
+                "date,name,location,url,type",
             )
             self.assertTrue(manifest["last_successful_at"].endswith("Z"))
             self.assertEqual(manifest["last_run_status"], "success")
+
+    def test_write_events_includes_optional_competition_type(self):
+        with tempfile.TemporaryDirectory() as directory:
+            csv_path = Path(directory) / "events.csv"
+            write_events(
+                csv_path,
+                [
+                    {
+                        "date": "2026-12-05",
+                        "name": "Action Air",
+                        "location": "Vsetín",
+                        "url": "https://example.test/event",
+                        "type": "IPSC Action Air",
+                    },
+                    {
+                        "date": "2026-12-06",
+                        "name": "Unknown",
+                        "location": "Trenčín",
+                        "url": "https://example.test/unknown",
+                    },
+                ],
+            )
+
+            self.assertEqual(
+                csv_path.read_text(encoding="utf-8").splitlines(),
+                [
+                    "date,name,location,url,type",
+                    "2026-12-05,Action Air,Vsetín,https://example.test/event,IPSC Action Air",
+                    "2026-12-06,Unknown,Trenčín,https://example.test/unknown,",
+                ],
+            )
+
+    def test_sads_classification_uses_event_fields_not_site_navigation(self):
+        self.assertEqual(
+            classify_competition_type(
+                """
+                <nav>Action Air IPSC</nav>
+                <div><span class="modry">Pretek podľa pravidiel</span>
+                  <span class="biely">IPSC</span></div>
+                <div><span class="modry">Druh preteku</span>
+                  <span class="biely">HG+PCC</span></div>
+                """,
+                "Falcon League",
+                "sads",
+            ),
+            "IPSC",
+        )
+        self.assertEqual(
+            classify_competition_type(
+                """
+                <tr><th>Pretek podľa pravidiel</th><td>IPSC</td></tr>
+                <tr><th>Druh preteku</th>
+                  <td>Action Air HG, Action Air PCC</td></tr>
+                """,
+                "CNC Action Air",
+                "sads",
+            ),
+            "IPSC Action Air",
+        )
+        self.assertEqual(
+            classify_competition_type(
+                """
+                <nav>IPSC Action Air</nav>
+                <div><span class="modry">Pretek podľa pravidiel</span>
+                  <span class="biely">Steel Cup/Challenge</span></div>
+                """,
+                "Speed Steel",
+                "sads",
+            ),
+            "Steel Cup/Challenge",
+        )
+        self.assertEqual(
+            classify_competition_type(
+                "<nav>Action Air IPSC</nav>",
+                "Bellator Armory",
+                "sads",
+            ),
+            "",
+        )
+        self.assertEqual(
+            classify_competition_type(
+                "<div>Obtížnost: IPSC Level 1. HG + PCC\n"
+                "Počet situací: 8</div>",
+                "Atlas One",
+                "squad",
+            ),
+            "IPSC",
+        )
+        self.assertEqual(
+            classify_competition_type(
+                "<div>Obtížnost: SteelCup - viz pravidla\n"
+                "Počet situací: 8</div>",
+                "Atlas HellsBells",
+                "squad",
+            ),
+            "Steel Cup/Challenge",
+        )
+        self.assertEqual(
+            classify_competition_type(
+                "<header>Shooting Area Kalendár IPSC pretekov</header>"
+                "<main>IPSC MATCH REGISTRATION</main>",
+                "Komarnanska puska",
+                "shootingarea",
+            ),
+            "",
+        )
+        self.assertEqual(
+            classify_competition_type(
+                "<main>Steel Cup/Challenge</main>",
+                "Atlas HellsBells",
+                "shootingarea",
+            ),
+            "Steel Cup/Challenge",
+        )
+
+    def test_type_lookup_rejects_external_hosts_without_fetching(self):
+        events = [
+            {
+                "date": "2026-12-05",
+                "name": "External",
+                "location": "Somewhere",
+                "url": "https://unexpected.example/event",
+            }
+        ]
+        fetcher = mock.Mock()
+
+        self.assertEqual(enrich_event_types(events, "sads", fetcher), events)
+        self.assertEqual(events[0]["type"], "")
+        fetcher.assert_not_called()
+
+    def test_type_lookup_adds_type_from_sads_detail_fields(self):
+        events = [
+            {
+                "date": "2026-12-05",
+                "name": "CNC ACTION AIR",
+                "location": "Vsetín",
+                "url": "https://new.sads.sk/event/1",
+            }
+        ]
+        detail_html = """
+        <tr><th>Pretek podľa pravidiel</th><td>IPSC</td></tr>
+        <tr><th>Druh preteku</th><td>Action Air HG, Action Air PCC</td></tr>
+        """
+
+        with mock.patch(
+            "scraper_common.fetch_html", return_value=detail_html
+        ) as fetch:
+            enrich_event_types(events, "sads")
+
+        self.assertEqual(events[0]["type"], "IPSC Action Air")
+        fetch.assert_called_once_with(events[0]["url"])
+
+    def test_type_lookup_handles_unavailable_details_and_reports_failure(self):
+        events = [
+            {
+                "date": "2026-12-05",
+                "name": "Known",
+                "location": "Somewhere",
+                "url": "https://new.sads.sk/event/1",
+            }
+        ]
+        with (
+            mock.patch(
+                "scraper_common.fetch_html",
+                side_effect=OSError("detail unavailable"),
+            ),
+            mock.patch("builtins.print") as print_warning,
+        ):
+            enrich_event_types(events, "sads")
+
+        self.assertEqual(events[0]["type"], "")
+        self.assertIn("detail unavailable", print_warning.call_args.args[0])
+        self.assertIs(print_warning.call_args.kwargs["file"], sys.stderr)
 
     def test_failed_scrape_preserves_previous_success_and_records_failure(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -263,7 +443,17 @@ class RestorePagesDataTests(unittest.TestCase):
                 mock.patch.object(
                     restore_pages_data,
                     "fetch_bytes",
-                    side_effect=[json.dumps(manifest).encode(), csv_content],
+                    side_effect=[
+                        json.dumps(manifest).encode(),
+                        csv_content,
+                        HTTPError(
+                            "https://example.test/KamNaSutaz/duplicate-thresholds.json",
+                            404,
+                            "Not Found",
+                            {},
+                            None,
+                        ),
+                    ],
                 ) as fetch,
             ):
                 restore_pages_data.restore_pages_data(
@@ -282,8 +472,32 @@ class RestorePagesDataTests(unittest.TestCase):
                 [
                     "https://example.test/KamNaSutaz/data/los-sk.json",
                     f"https://example.test/KamNaSutaz/data/{manifest['file']}",
+                    "https://example.test/KamNaSutaz/duplicate-thresholds.json",
                 ],
             )
+
+    def test_restores_published_duplicate_thresholds(self):
+        config = {
+            "possible_threshold": 0.7,
+            "strict_threshold": 0.9,
+        }
+        config_bytes = json.dumps(config).encode()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            thresholds_path = root / "duplicate-thresholds.json"
+            with (
+                mock.patch.object(restore_pages_data, "SOURCES", ()),
+                mock.patch.object(
+                    restore_pages_data, "fetch_bytes", return_value=config_bytes
+                ),
+            ):
+                restore_pages_data.restore_pages_data(
+                    "https://example.test/KamNaSutaz",
+                    root / "data",
+                    thresholds_path,
+                )
+
+            self.assertEqual(json.loads(thresholds_path.read_text()), config)
 
     def test_missing_published_manifest_is_allowed_for_first_deployment(self):
         not_found = HTTPError(
@@ -313,6 +527,27 @@ class RestorePagesDataTests(unittest.TestCase):
                     )
 
             fetch.assert_called_once()
+
+
+class DuplicateThresholdsTests(unittest.TestCase):
+    def test_writes_percent_inputs_as_valid_fractional_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "duplicate-thresholds.json"
+            config = duplicate_thresholds.write_config(70, 90, path)
+
+            self.assertEqual(
+                config,
+                {"possible_threshold": 0.7, "strict_threshold": 0.9},
+            )
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), config)
+
+    def test_rejects_invalid_order_and_out_of_range_percentages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "duplicate-thresholds.json"
+            for possible, strict in ((70, 60), (-1, 90), (50, 101)):
+                with self.subTest(possible=possible, strict=strict):
+                    with self.assertRaises(ValueError):
+                        duplicate_thresholds.write_config(possible, strict, path)
 
 
 if __name__ == "__main__":

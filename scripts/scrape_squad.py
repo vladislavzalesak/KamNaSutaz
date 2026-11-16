@@ -5,7 +5,13 @@ import sys
 from datetime import date
 from html.parser import HTMLParser
 from urllib.parse import urljoin
-from scraper_common import make_event, parse_date, run_scraper, upcoming_events
+from scraper_common import (
+    enrich_event_types,
+    make_event,
+    parse_date,
+    run_scraper,
+    upcoming_events,
+)
 
 SOURCE_URL = "https://squad.sk/"
 
@@ -117,9 +123,13 @@ def parse_events(html, today: date):
     return upcoming_events(parser.events, today)
 
 
+def parse_typed_events(html, today):
+    return enrich_event_types(parse_events(html, today), "squad")
+
+
 if __name__ == "__main__":
     try:
-        run_scraper(SOURCE_URL, "squad", parse_events)
+        run_scraper(SOURCE_URL, "squad", parse_typed_events)
     except Exception as error:
         print(f"SQUAD scrape failed: {error}", file=sys.stderr)
         raise

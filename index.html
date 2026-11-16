@@ -22,6 +22,9 @@
       <header class="page-header">
         <p class="eyebrow">Kalendár podujatí</p>
         <h1>Kam na súťaž</h1>
+        <p id="debug-banner" class="debug-banner" hidden>
+          Lokálny náhľad: používajú sa testovacie dáta.
+        </p>
         <button id="feedback-button" class="feedback-button" type="button">
           Spätná väzba
         </button>
@@ -52,16 +55,16 @@
           id="duplicate-filters"
           class="date-filters"
           role="group"
-          aria-label="Filtrovať duplicitné súťaže"
+          aria-label="Zoskupiť duplicitné súťaže"
         >
           <button class="date-filter-button" type="button" data-mode="none" aria-pressed="false">
-            Nefiltruj
+            Samostatné riadky
           </button>
           <button class="date-filter-button" type="button" data-mode="show" aria-pressed="true">
-            Zobraz %
+            Možné zhody
           </button>
           <button class="date-filter-button" type="button" data-mode="hide" aria-pressed="false">
-            Skry duplicity
+            Iba isté zhody
           </button>
         </div>
       </div>
@@ -73,11 +76,11 @@
           <table>
             <thead>
               <tr>
-                <th scope="col">Zdroj</th>
                 <th scope="col">Dátum</th>
                 <th scope="col">Názov preteku</th>
+                <th scope="col">Typ súťaže</th>
                 <th scope="col">Miesto</th>
-                <th scope="col"><span class="visually-hidden">Odkaz</span></th>
+                <th scope="col">Zdroje a odkazy</th>
               </tr>
             </thead>
             <tbody id="events"></tbody>

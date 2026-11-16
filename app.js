@@ -30,10 +30,19 @@ const sourceStatusElement = document.querySelector("#source-status");
 const dateFiltersElement = document.querySelector("#date-filters");
 const duplicateFiltersElement = document.querySelector("#duplicate-filters");
 const feedbackButton = document.querySelector("#feedback-button");
+const debugPreview =
+  new URLSearchParams(window.location.search).get("debug") === "1" &&
+  ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+const dataDirectory = debugPreview ? "debug-data" : "data";
 const enabledSources = new Map(sources.map((source) => [source.id, true]));
 let selectedDateRange = "all";
 let selectedDuplicateMode = "show";
 let allEvents = [];
+let duplicateThresholds;
+
+if (debugPreview) {
+  document.querySelector("#debug-banner").hidden = false;
+}
 
 feedbackButton.addEventListener("click", () => {
   const address = [
@@ -92,50 +101,71 @@ async function loadEvents() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const loadedSources = await Promise.all(
-    sources.map(async (source) => {
-      const manifestPath = `data/${source.id}.json`;
-      const manifestResponse = await fetch(manifestPath, { cache: "no-cache" });
-      if (!manifestResponse.ok) {
-        throw new Error(
-          `Nepodarilo sa načítať ${manifestPath} (${manifestResponse.status}).`,
+  const [thresholdResponse, loadedSources] = await Promise.all([
+    fetch("duplicate-thresholds.json", { cache: "no-cache" }),
+    Promise.all(
+      sources.map(async (source) => {
+        const manifestPath = `${dataDirectory}/${source.id}.json`;
+        const manifestResponse = await fetch(manifestPath, { cache: "no-cache" });
+        if (!manifestResponse.ok) {
+          throw new Error(
+            `Nepodarilo sa načítať ${manifestPath} (${manifestResponse.status}).`,
+          );
+        }
+        const manifest = await manifestResponse.json();
+        if (!manifest || manifest.source_id !== source.id) {
+          throw new Error(`Neplatné údaje o zdroji ${source.name}.`);
+        }
+        if (
+          manifest.file === null &&
+          manifest.last_successful_at === null &&
+          ["unknown", "failed"].includes(manifest.last_run_status)
+        ) {
+          return { source, manifest, events: [] };
+        }
+
+        const filenamePattern = new RegExp(
+          `^${source.id}_\\d{8}T\\d{12}Z\\.csv$`,
         );
-      }
-      const manifest = await manifestResponse.json();
-      if (!manifest || manifest.source_id !== source.id) {
-        throw new Error(`Neplatné údaje o zdroji ${source.name}.`);
-      }
-      if (
-        manifest.file === null &&
-        manifest.last_successful_at === null &&
-        ["unknown", "failed"].includes(manifest.last_run_status)
-      ) {
-        return { source, manifest, events: [] };
-      }
+        if (
+          typeof manifest.file !== "string" ||
+          !filenamePattern.test(manifest.file) ||
+          typeof manifest.last_successful_at !== "string" ||
+          Number.isNaN(Date.parse(manifest.last_successful_at)) ||
+          typeof manifest.last_attempted_at !== "string" ||
+          Number.isNaN(Date.parse(manifest.last_attempted_at)) ||
+          !["success", "failed"].includes(manifest.last_run_status)
+        ) {
+          throw new Error(`Neplatné údaje o aktualizácii zdroja ${source.name}.`);
+        }
 
-      const filenamePattern = new RegExp(
-        `^${source.id}_\\d{8}T\\d{12}Z\\.csv$`,
-      );
-      if (
-        typeof manifest.file !== "string" ||
-        !filenamePattern.test(manifest.file) ||
-        typeof manifest.last_successful_at !== "string" ||
-        Number.isNaN(Date.parse(manifest.last_successful_at)) ||
-        typeof manifest.last_attempted_at !== "string" ||
-        Number.isNaN(Date.parse(manifest.last_attempted_at)) ||
-        !["success", "failed"].includes(manifest.last_run_status)
-      ) {
-        throw new Error(`Neplatné údaje o aktualizácii zdroja ${source.name}.`);
-      }
-
-      const csvPath = `data/${manifest.file}`;
-      const response = await fetch(csvPath, { cache: "no-cache" });
-      if (!response.ok) {
-        throw new Error(`Nepodarilo sa načítať ${csvPath} (${response.status}).`);
-      }
-      return { source, manifest, text: await response.text() };
-    }),
-  );
+        const csvPath = `${dataDirectory}/${manifest.file}`;
+        const response = await fetch(csvPath, { cache: "no-cache" });
+        if (!response.ok) {
+          throw new Error(`Nepodarilo sa načítať ${csvPath} (${response.status}).`);
+        }
+        return { source, manifest, text: await response.text() };
+      }),
+    ),
+  ]);
+  if (!thresholdResponse.ok) {
+    throw new Error(
+      `Nepodarilo sa načítať duplicate-thresholds.json (${thresholdResponse.status}).`,
+    );
+  }
+  const thresholds = await thresholdResponse.json();
+  if (
+    !thresholds ||
+    !Number.isFinite(thresholds.possible_threshold) ||
+    !Number.isFinite(thresholds.strict_threshold) ||
+    thresholds.possible_threshold < 0 ||
+    thresholds.possible_threshold > 1 ||
+    thresholds.strict_threshold < 0 ||
+    thresholds.strict_threshold > 1 ||
+    thresholds.strict_threshold < thresholds.possible_threshold
+  ) {
+    throw new Error("Neplatná konfigurácia prahov duplicít.");
+  }
 
   const events = loadedSources.flatMap(({ source, text }) => {
     if (text === undefined) {
@@ -159,6 +189,7 @@ async function loadEvents() {
         name: columns.name === undefined ? "" : row[columns.name] || "",
         location: row[columns.location],
         url: row[columns.url],
+        type: columns.type === undefined ? "" : row[columns.type] || "",
         source,
       }))
       .filter((event) => {
@@ -172,7 +203,7 @@ async function loadEvents() {
       });
   });
 
-  return { events, loadedSources };
+  return { events, loadedSources, thresholds };
 }
 
 function renderSourceStatus(loadedSources) {
@@ -344,8 +375,6 @@ function renderSourceStatus(loadedSources) {
   }
 }
 
-const duplicateThreshold = 0.88;
-const debugDuplicateThreshold = 0.7;
 const duplicateColorCount = 6;
 const nameStopWords = new Set([
   "competition",
@@ -542,6 +571,26 @@ function chooseDuplicateRepresentative(group) {
   });
 }
 
+function chooseCompetitionType(events) {
+  const types = [...new Set(events.map((event) => event.type.trim()).filter(Boolean))];
+  if (types.includes("Steel Cup/Challenge")) {
+    return "Steel Cup/Challenge";
+  }
+  if (types.includes("IPSC Action Air")) {
+    return "IPSC Action Air";
+  }
+  if (types.includes("IPSC Rifle/Mini Rifle")) {
+    return "IPSC Rifle/Mini Rifle";
+  }
+  if (types.length === 1) {
+    return types[0];
+  }
+  if (types.length === 2 && types.includes("IPSC")) {
+    return types.find((type) => type !== "IPSC");
+  }
+  return "";
+}
+
 function renderEventList() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -571,22 +620,17 @@ function renderEventList() {
   if (selectedDuplicateMode !== "none") {
     const threshold =
       selectedDuplicateMode === "hide"
-        ? duplicateThreshold
-        : debugDuplicateThreshold;
+        ? duplicateThresholds.strict_threshold
+        : duplicateThresholds.possible_threshold;
     duplicateGroups = findDuplicateGroups(events, threshold);
     duplicateGroups.forEach((group, index) => {
       const info = {
         id: index + 1,
         confidence: group.confidence,
+        events: group.events,
         representative: chooseDuplicateRepresentative(group),
       };
       group.events.forEach((event) => duplicateInfo.set(event, info));
-    });
-  }
-  if (selectedDuplicateMode === "hide") {
-    events = events.filter((event) => {
-      const info = duplicateInfo.get(event);
-      return !info || info.representative === event;
     });
   }
   eventsElement.replaceChildren();
@@ -599,73 +643,99 @@ function renderEventList() {
     return;
   }
 
-  const rows = events.map((event) => {
+  const renderedGroups = [];
+  const renderedDuplicateGroups = new Set();
+  for (const event of events) {
+    const duplicate = duplicateInfo.get(event);
+    if (!duplicate) {
+      renderedGroups.push({ event, members: [event], duplicate: null });
+    } else if (!renderedDuplicateGroups.has(duplicate)) {
+      renderedDuplicateGroups.add(duplicate);
+      renderedGroups.push({
+        event: duplicate.representative,
+        members: duplicate.events,
+        duplicate,
+      });
+    }
+  }
+
+  const rows = renderedGroups.map(({ event, members, duplicate }) => {
     const row = document.createElement("tr");
-    const sourceCell = document.createElement("td");
     const dateCell = document.createElement("td");
     const nameCell = document.createElement("td");
+    const typeCell = document.createElement("td");
     const locationCell = document.createElement("td");
-    const linkCell = document.createElement("td");
-    const icon = document.createElement("img");
-    const link = document.createElement("a");
-
-    sourceCell.className = "source-cell";
-    icon.className = "source-icon";
-    icon.src = event.source.icon;
-    icon.alt = event.source.name;
-    icon.title = event.source.name;
-    icon.loading = "lazy";
-    icon.addEventListener("error", () => icon.remove());
-    sourceCell.append(icon);
+    const sourcesCell = document.createElement("td");
+    const sourceLinks = document.createElement("div");
+    dateCell.dataset.label = "Dátum";
+    nameCell.dataset.label = "Názov";
+    dateCell.className = "competition-date-cell";
+    typeCell.dataset.label = "Typ súťaže";
+    typeCell.className = "competition-type-cell";
+    locationCell.dataset.label = "Miesto";
+    sourcesCell.className = "source-cell";
+    sourcesCell.dataset.label = "Zdroje";
+    sourceLinks.className = "event-source-links";
     dateCell.textContent = new Intl.DateTimeFormat("sk-SK", {
       dateStyle: "medium",
       timeZone: "UTC",
     }).format(new Date(`${event.date}T00:00:00Z`));
     nameCell.textContent = event.name;
-    const duplicate = duplicateInfo.get(event);
-    if (selectedDuplicateMode === "show" && duplicate) {
+    if (duplicate) {
       const badge = document.createElement("span");
-      const percentage = Math.round(duplicate.confidence * 100);
+      const sourceCount = members.length;
+      const sourceLabel =
+        sourceCount === 2 ? "2 zdroje" : `${sourceCount} zdrojov`;
+      const confidenceLabel =
+        selectedDuplicateMode === "show"
+          ? ` · zhoda ${Math.round(duplicate.confidence * 100)} %`
+          : "";
       const colorIndex = ((duplicate.id - 1) % duplicateColorCount) + 1;
       badge.className = `duplicate-badge duplicate-badge--color-${colorIndex}`;
-      badge.textContent = `Možná duplicita #${duplicate.id} · ${percentage} %`;
+      badge.textContent = `${sourceLabel}${confidenceLabel}`;
       nameCell.append(" ", badge);
     }
+    typeCell.textContent = chooseCompetitionType(members);
     locationCell.textContent = event.location;
 
-    const url = new URL(event.url, window.location.href);
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
-      throw new Error("Odkaz na súťaž musí používať HTTP alebo HTTPS.");
+    for (const member of members) {
+      const url = new URL(member.url, window.location.href);
+      if (url.protocol !== "https:" && url.protocol !== "http:") {
+        throw new Error("Odkaz na súťaž musí používať HTTP alebo HTTPS.");
+      }
+      const link = document.createElement("a");
+      const icon = document.createElement("img");
+      link.className = "event-source-link";
+      link.href = url.href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.setAttribute(
+        "aria-label",
+        `Otvoriť detail preteku na stránke ${member.source.name}`,
+      );
+      link.title = `Detail na stránke ${member.source.name}`;
+      icon.className = "source-icon";
+      icon.src = member.source.icon;
+      icon.alt = "";
+      icon.loading = "lazy";
+      icon.addEventListener("error", () => icon.remove());
+      link.append(icon, member.source.name);
+      sourceLinks.append(link);
     }
-    link.href = url.href;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.className = "event-link";
-    link.textContent = "Otvoriť pretek ↗";
-    link.setAttribute(
-      "aria-label",
-      `Otvoriť detail preteku na stránke ${event.source.name}`,
-    );
-    link.title = `Detail na stránke ${event.source.name}`;
-
-    linkCell.append(link);
-    row.append(sourceCell, dateCell, nameCell, locationCell, linkCell);
+    sourcesCell.append(sourceLinks);
+    row.append(dateCell, nameCell, typeCell, locationCell, sourcesCell);
     return row;
   });
 
   eventsElement.append(...rows);
   if (selectedDuplicateMode === "show") {
     statusElement.textContent = duplicateGroups.length
-      ? `Nájdené skupiny možných duplicít: ${duplicateGroups.length}.`
+      ? `Zoskupené možné duplicity: ${duplicateGroups.length}.`
       : "V aktuálnych údajoch sa nenašli možné duplicity.";
   } else if (selectedDuplicateMode === "hide") {
-    const hiddenCount = duplicateGroups.reduce(
-      (count, group) => count + group.events.length - 1,
-      0,
-    );
-    statusElement.textContent = hiddenCount
-      ? `Skrytých záznamov: ${hiddenCount}; skupín duplicít: ${duplicateGroups.length}.`
-      : "Nenašli sa duplicity s mierou zhody aspoň 88 %.";
+    statusElement.textContent = duplicateGroups.length
+      ? `Zoskupené duplicity s mierou zhody aspoň ${Math.round(duplicateThresholds.strict_threshold * 100)} %: ${duplicateGroups.length}.`
+      : `Nenašli sa duplicity s mierou zhody aspoň ${Math.round(duplicateThresholds.strict_threshold * 100)} %.`;
   } else {
     statusElement.textContent = "";
   }
@@ -707,8 +777,13 @@ duplicateFiltersElement.addEventListener("click", (event) => {
   renderEventList();
 });
 
-function renderEvents({ events, loadedSources }) {
+function renderEvents({ events, loadedSources, thresholds }) {
   allEvents = events;
+  duplicateThresholds = thresholds;
+  duplicateFiltersElement.querySelector('[data-mode="show"]').textContent =
+    `Možné (${Math.round(thresholds.possible_threshold * 100)} %+)`;
+  duplicateFiltersElement.querySelector('[data-mode="hide"]').textContent =
+    `Iba isté (${Math.round(thresholds.strict_threshold * 100)} %+)`;
   renderSourceStatus(loadedSources);
   renderEventList();
 }

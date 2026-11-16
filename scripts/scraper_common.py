@@ -3,6 +3,7 @@
 import csv
 import json
 import re
+import sys
 import tempfile
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -14,6 +15,12 @@ from zoneinfo import ZoneInfo
 DATE_PATTERN = re.compile(r"\b\d{1,2}\.\d{1,2}\.\d{4}\b")
 ROOT = Path(__file__).resolve().parents[1]
 SQUAD_CA_CHAIN_PATH = ROOT / "scripts" / "certs" / "squad-ca-chain.pem"
+DETAIL_HOSTS = {
+    "los-sk": {"los-sk.sk", "www.los-sk.sk"},
+    "sads": {"new.sads.sk", "sads.sk"},
+    "shootingarea": {"www.shootingarea.eu", "shootingarea.eu"},
+    "squad": {"squad.sk", "www.squad.sk"},
+}
 
 
 def parse_date(value):
@@ -172,6 +179,168 @@ def fetch_html(url):
         return response.read().decode("utf-8")
 
 
+class CompetitionTypeParser(HTMLParser):
+    """Collect visible text and labeled event details from HTML."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self.fields = {}
+        self.ignored_tags = []
+        self.row = None
+        self.cell = None
+        self.span_kind = None
+        self.span_text = []
+        self.current_label = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {"script", "style"}:
+            self.ignored_tags.append(tag)
+            return
+        if self.ignored_tags:
+            return
+
+        attributes = dict(attrs)
+        if tag == "tr":
+            self.row = []
+        elif tag in {"th", "td"} and self.row is not None:
+            self.cell = []
+        elif tag == "span":
+            classes = set(attributes.get("class", "").split())
+            if "modry" in classes:
+                self.span_kind = "label"
+                self.span_text = []
+            elif "biely" in classes:
+                self.span_kind = "value"
+                self.span_text = []
+        elif tag == "img":
+            alt = attributes.get("alt", "")
+            if re.search(r"\b(?:IPSC|IDPA|PRS|Steel)\b", alt, re.IGNORECASE):
+                self.parts.append(alt)
+
+    def handle_endtag(self, tag):
+        if self.ignored_tags and tag == self.ignored_tags[-1]:
+            self.ignored_tags.pop()
+            return
+        if self.ignored_tags:
+            return
+
+        if tag == "span" and self.span_kind:
+            value = " ".join("".join(self.span_text).split())
+            if self.span_kind == "label":
+                self.current_label = value.casefold()
+            elif self.current_label:
+                self.fields[self.current_label] = value
+                self.current_label = None
+            self.span_kind = None
+            self.span_text = []
+        elif tag in {"th", "td"} and self.cell is not None:
+            self.row.append(" ".join("".join(self.cell).split()))
+            self.cell = None
+        elif tag == "tr" and self.row is not None:
+            if len(self.row) > 1 and self.row[0]:
+                self.fields[self.row[0].casefold()] = self.row[1]
+            self.row = None
+
+    def handle_data(self, data):
+        if not self.ignored_tags:
+            self.parts.append(data)
+            if self.cell is not None:
+                self.cell.append(data)
+            if self.span_kind:
+                self.span_text.append(data)
+
+
+def _classify_type_text(text):
+    if re.search(r"\bsteel\s*(?:cup|challenge)\b", text, re.IGNORECASE):
+        return "Steel Cup/Challenge"
+    if re.search(r"\bidpa\b", text, re.IGNORECASE):
+        return "IDPA"
+    if re.search(r"\bprs\b|precision\s+rifle\s+series", text, re.IGNORECASE):
+        return "PRS"
+    if re.search(r"action\s*air", text, re.IGNORECASE):
+        return (
+            "IPSC Action Air"
+            if re.search(r"\bipsc\b", text, re.IGNORECASE)
+            else "Action Air"
+        )
+    if re.search(r"\bipsc\b", text, re.IGNORECASE):
+        if re.search(r"\b(?:mini\s*)?rifle\b", text, re.IGNORECASE):
+            return "IPSC Rifle/Mini Rifle"
+        return "IPSC"
+    return ""
+
+
+def _squad_difficulty(text):
+    match = re.search(
+        r"\bObtížnost\s*:\s*(.{1,140}?)(?=\b(?:Počet situací|"
+        r"Minimální počet ran|Prematch|Hlavní závod)\b|$)",
+        text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    return match.group(1) if match else ""
+
+
+def classify_competition_type(html, event_name="", source_id=""):
+    parser = CompetitionTypeParser()
+    parser.feed(re.sub(r"<(script|style)\b.*?</\1\s*>", "", html, flags=re.I | re.S))
+    if source_id == "sads":
+        rules = parser.fields.get("pretek podľa pravidiel", "")
+        discipline = parser.fields.get("druh preteku", "")
+        return _classify_type_text(f"{rules} {discipline} {event_name}")
+
+    if source_id == "shootingarea":
+        page_text = " ".join(parser.parts)
+        if re.search(r"\bsteel\s*(?:cup|challenge)\b", page_text, re.IGNORECASE):
+            return "Steel Cup/Challenge"
+        return _classify_type_text(event_name)
+
+    event_type = _classify_type_text(event_name)
+    if event_type:
+        return event_type
+
+    if source_id == "squad":
+        difficulty = _squad_difficulty(" ".join(parser.parts))
+        return _classify_type_text(f"{difficulty} {event_name}")
+    return ""
+
+
+def enrich_event_types(events, source_id, fetcher=None):
+    if source_id not in DETAIL_HOSTS:
+        raise ValueError(f"Unknown competition source: {source_id}")
+    detail_fetcher = fetcher or fetch_html
+
+    for event in events:
+        parsed_url = urlsplit(event["url"])
+        if (
+            parsed_url.scheme not in {"http", "https"}
+            or parsed_url.hostname not in DETAIL_HOSTS[source_id]
+        ):
+            print(
+                f"Skipping competition type lookup for untrusted URL: {event['url']}",
+                file=sys.stderr,
+            )
+            event["type"] = ""
+            continue
+
+        try:
+            detail_html = detail_fetcher(event["url"])
+        except OSError as error:
+            print(
+                f"Could not load competition type for {event['url']}: {error}",
+                file=sys.stderr,
+            )
+            event["type"] = ""
+            continue
+
+        event["type"] = classify_competition_type(
+            detail_html,
+            event["name"],
+            source_id,
+        )
+    return events
+
+
 def run_scraper(url, source_id, parse_events):
     metadata_path = ROOT / "data" / f"{source_id}.json"
     previous_metadata = read_metadata(metadata_path, source_id)
@@ -245,7 +414,7 @@ def write_events(path, events):
     ) as temporary_file:
         writer = csv.DictWriter(
             temporary_file,
-            fieldnames=["date", "name", "location", "url"],
+            fieldnames=["date", "name", "location", "url", "type"],
         )
         writer.writeheader()
         writer.writerows(events)

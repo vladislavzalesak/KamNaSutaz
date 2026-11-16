@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from scraper_common import (
     TableEventParser,
+    enrich_event_types,
     fetch_html,
     run_scraper,
     upcoming_events,
@@ -68,9 +69,13 @@ def parse_events(html, today):
     return upcoming_events(events.values(), today)
 
 
+def parse_typed_events(html, today):
+    return enrich_event_types(parse_events(html, today), "sads")
+
+
 if __name__ == "__main__":
     try:
-        run_scraper(SOURCE_URL, "sads", parse_events)
+        run_scraper(SOURCE_URL, "sads", parse_typed_events)
     except Exception as error:
         print(f"SADS scrape failed: {error}", file=sys.stderr)
         raise

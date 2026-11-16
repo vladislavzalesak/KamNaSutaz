@@ -15,7 +15,7 @@ body {
   position: relative;
   isolation: isolate;
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
 }
 
 body::before {
@@ -106,7 +106,7 @@ footer {
 
 .source-status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
   gap: 0.75rem;
 }
 
@@ -200,6 +200,22 @@ footer {
   --duplicate-border: #e8b3c5;
   --duplicate-background: #fce9f0;
   --duplicate-foreground: #7b2c4a;
+}
+
+.debug-banner {
+  display: inline-block;
+  margin: 0.5rem 0;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #e0a52e;
+  border-radius: 0.5rem;
+  background: #fff8dc;
+  color: #66520a;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.debug-banner[hidden] {
+  display: none;
 }
 
 .source-card {
@@ -398,22 +414,55 @@ footer {
 }
 
 .source-cell {
-  width: 3.5rem;
-  text-align: center;
+  min-width: 0;
 }
 
-.source-cell .source-icon {
-  margin: 0 auto;
+.event-source-links {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
-td:nth-child(2) {
-  width: 9rem;
-  white-space: nowrap;
+.event-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid #17613c;
+  border-radius: 0.45rem;
+  background: #17613c;
+  color: #fff;
+  font-size: 0.8rem;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.event-source-link:hover {
+  border-color: #0c4227;
+  background: #0c4227;
+  color: #fff;
+}
+
+.event-source-link .source-icon {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) invert(1);
+}
+
+.competition-date-cell {
   font-variant-numeric: tabular-nums;
 }
 
+.competition-type-cell {
+  color: #344d40;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 .table-wrap {
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid #dce5de;
   border-radius: 0.75rem;
   background: #fff;
@@ -421,6 +470,7 @@ td:nth-child(2) {
 
 table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   text-align: left;
 }
@@ -429,6 +479,27 @@ th,
 td {
   padding: 1rem 1.1rem;
   vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+th:first-child {
+  width: 13%;
+}
+
+th:nth-child(2) {
+  width: 27%;
+}
+
+th:nth-child(3) {
+  width: 17%;
+}
+
+th:nth-child(4) {
+  width: 20%;
+}
+
+th:nth-child(5) {
+  width: 23%;
 }
 
 th {
@@ -442,12 +513,6 @@ td {
   border-top: 1px solid #e8eee9;
 }
 
-td:last-child {
-  width: 10rem;
-  text-align: right;
-  white-space: nowrap;
-}
-
 a {
   color: #17613c;
   font-weight: 650;
@@ -459,23 +524,7 @@ a:hover {
   color: #0c4227;
 }
 
-.event-link {
-  display: inline-flex;
-  justify-content: center;
-  padding: 0.55rem 0.75rem;
-  border-radius: 0.5rem;
-  background: #17613c;
-  color: #fff;
-  font-size: 0.88rem;
-  text-decoration: none;
-}
-
-.event-link:hover {
-  background: #0c4227;
-  color: #fff;
-}
-
-.event-link:focus-visible {
+.event-source-link:focus-visible {
   outline: 3px solid #e0a52e;
   outline-offset: 2px;
 }
@@ -510,9 +559,18 @@ footer {
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
   .page {
+    width: calc(100% - 1rem);
     padding-top: 2.5rem;
+  }
+
+  .source-status-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .source-card {
+    grid-template-columns: minmax(0, 1fr) 5.5rem;
   }
 
   .date-filters {
@@ -522,18 +580,75 @@ footer {
   .date-filter-button {
     padding-inline: 0.2rem;
     font-size: 0.8rem;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
-  th,
-  td {
-    padding: 0.85rem 0.7rem;
+  .table-wrap {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
 
-  td:nth-child(2) {
+  table,
+  tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .table-wrap thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.75rem;
+    border: 1px solid #dce5de;
+    border-radius: 0.75rem;
+    background: #fff;
+  }
+
+  tbody td {
+    display: grid;
+    grid-template-columns: minmax(5rem, 0.32fr) minmax(0, 1fr);
+    gap: 0.6rem;
+    width: 100%;
+    min-width: 0;
+    padding: 0.75rem;
+    border-top: 1px solid #e8eee9;
+  }
+
+  tbody td::before {
+    color: #56645c;
+    font-size: 0.78rem;
+    font-weight: 650;
+    content: attr(data-label);
+  }
+
+  tbody td:first-child {
+    border-top: 0;
+  }
+
+  .competition-date-cell {
     width: auto;
+    white-space: normal;
   }
 
-  td:last-child {
-    width: auto;
+  .event-source-links,
+  .event-source-link {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .duplicate-badge {
+    white-space: normal;
   }
 }
