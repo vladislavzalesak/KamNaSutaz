@@ -5,5 +5,13 @@ on:
   schedule:
     - cron: "0 1 * * *"
 
-run: gh workflow run scrape-all-sites.yml --ref v1.0
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Scrape on v1.0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run scrape-all-sites.yml --ref v1.0
 
