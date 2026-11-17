@@ -5,6 +5,5 @@ on:
   schedule:
     - cron: "0 1 * * *"
 
-run: |
-      gh workflow run scrape-all-sites.yml --ref v1.0
+run: gh workflow run scrape-all-sites.yml --ref v1.0
 
