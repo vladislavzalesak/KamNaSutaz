@@ -19,6 +19,8 @@ python scripts/scrape_los_sk.py
 python scripts/scrape_squad.py
 python scripts/scrape_shootingarea.py
 python scripts/scrape_sads.py
+python scripts/scrape_rda.py
+python scripts/scrape_szvvz.py
 python -m http.server
 ```
 
@@ -28,7 +30,7 @@ ktorý je ignorovaný Gitom; režim sa zapne iba na localhoste.
 
 ## Automatická aktualizácia
 
-Workflow `Scrape and deploy event calendar` denne spustí všetky štyri scrapery
+Workflow `Scrape and deploy event calendar` denne spustí všetkých šesť scraperov
 a možno ho spustiť aj ručne. Dáta sa zahrnú do GitHub Pages artefaktu a
 nasadia spolu so stránkou; scraper ich už necommitne do repozitára. Pred
 scrape-om workflow načíta posledné zverejnené manifesty a CSV súbory, takže pri
@@ -51,7 +53,7 @@ Stavové boxy sú zelené pri úspechu v poslednom týždni, žlté pri staršom
 Zobrazený čas je vždy čas posledného úspešného behu (nie zmena obsahu CSV);
 pri chybe sa navyše zobrazí čas neúspešného pokusu.
 
-Podporované zdroje sú LOS-SK, SQUAD, Shooting Area a SADS. CSV obsahuje dátum,
+Podporované zdroje sú LOS-SK, SQUAD, Shooting Area, SADS, RDA IPSC a SZVVZ. CSV obsahuje dátum,
 názov preteku (ak ho zdroj poskytuje), miesto, odkaz a voliteľný typ súťaže.
 Typ sa ponechá prázdny, ak ho nemožno z detailu spoľahlivo určiť. Duplicitné
 záznamy sa zoskupujú podľa dátumu a podobnosti názvu a miesta; pri skupine

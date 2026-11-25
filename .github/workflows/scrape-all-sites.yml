@@ -63,6 +63,16 @@ jobs:
         continue-on-error: true
         run: python scripts/scrape_sads.py
 
+      - name: Scrape RDA IPSC
+        id: scrape_rda
+        continue-on-error: true
+        run: python scripts/scrape_rda.py
+
+      - name: Scrape SZVVZ
+        id: scrape_szvvz
+        continue-on-error: true
+        run: python scripts/scrape_szvvz.py
+
       - name: Remove unreferenced CSV snapshots
         run: |
           python - <<'PY'
@@ -88,7 +98,7 @@ jobs:
       - name: Prepare Pages artifact
         run: |
           mkdir -p _site/data
-          cp index.html app.js styles.css site.webmanifest \
+          cp index.html app.js styles.css site.webmanifest CHANGELOG.md \
             duplicate-thresholds.json \
             android-chrome-192x192.png android-chrome-512x512.png \
             apple-touch-icon.png favicon.ico favicon-16x16.png \
@@ -112,11 +122,15 @@ jobs:
           SQUAD_SCRAPE: ${{ steps.scrape_squad.outcome }}
           SHOOTINGAREA_SCRAPE: ${{ steps.scrape_shootingarea.outcome }}
           SADS_SCRAPE: ${{ steps.scrape_sads.outcome }}
+          RDA_SCRAPE: ${{ steps.scrape_rda.outcome }}
+          SZVVZ_SCRAPE: ${{ steps.scrape_szvvz.outcome }}
         run: |
           if [[ "$LOS_SK_SCRAPE" != "success" || \
                 "$SQUAD_SCRAPE" != "success" || \
                 "$SHOOTINGAREA_SCRAPE" != "success" || \
-                "$SADS_SCRAPE" != "success" ]]; then
+                "$SADS_SCRAPE" != "success" || \
+                "$RDA_SCRAPE" != "success" || \
+                "$SZVVZ_SCRAPE" != "success" ]]; then
             echo "One or more event scrapers failed; previous data was retained where available." >&2
             exit 1
           fi

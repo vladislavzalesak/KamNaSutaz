@@ -11,7 +11,7 @@ from urllib.request import Request, urlopen
 from duplicate_thresholds import validate_config
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = ("los-sk", "squad", "shootingarea", "sads")
+SOURCES = ("los-sk", "squad", "shootingarea", "sads", "rda", "szvvz")
 THRESHOLDS_FILENAME = "duplicate-thresholds.json"
 
 

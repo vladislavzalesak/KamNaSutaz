@@ -20,6 +20,8 @@ DETAIL_HOSTS = {
     "sads": {"new.sads.sk", "sads.sk"},
     "shootingarea": {"www.shootingarea.eu", "shootingarea.eu"},
     "squad": {"squad.sk", "www.squad.sk"},
+    "rda": {"match.rda.sk", "match.rdaipsc.sk", "www.match.rdaipsc.sk"},
+    "szvvz": {"www.szvvz.sk", "szvvz.sk"},
 }
 
 

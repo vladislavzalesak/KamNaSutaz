@@ -23,6 +23,18 @@ const sources = [
     icon: "assets/icons/sads.svg",
     url: "https://new.sads.sk/index.php?option=com_kalendar&view=preteky&Itemid=414",
   },
+  {
+    id: "rda",
+    name: "RDA IPSC",
+    icon: "assets/icons/rda.svg",
+    url: "https://match.rdaipsc.sk/",
+  },
+  {
+    id: "szvvz",
+    name: "SZVVZ",
+    icon: "assets/icons/szvvz.svg",
+    url: "https://www.szvvz.sk/kalendar/",
+  },
 ];
 const eventsElement = document.querySelector("#events");
 const statusElement = document.querySelector("#status");
