@@ -264,6 +264,13 @@ footer {
   background: rgba(73, 91, 79, 0.05);
 }
 
+.source-error {
+  margin: 0.35rem 0 0;
+  color: #8f2525;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
 .source-card-heading {
   display: flex;
   align-items: center;

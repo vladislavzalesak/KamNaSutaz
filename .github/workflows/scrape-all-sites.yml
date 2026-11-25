@@ -117,6 +117,5 @@ jobs:
                 "$SQUAD_SCRAPE" != "success" || \
                 "$SHOOTINGAREA_SCRAPE" != "success" || \
                 "$SADS_SCRAPE" != "success" ]]; then
-            echo "One or more event scrapers failed; previous data was retained where available." >&2
-            exit 1
+            echo "::warning::One or more event scrapers failed; the deployment completed with their previous successful data."
           fi

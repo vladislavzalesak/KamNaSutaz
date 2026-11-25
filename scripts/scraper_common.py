@@ -366,6 +366,7 @@ def run_scraper(url, source_id, parse_events):
                 "last_successful_at": timestamp,
                 "last_attempted_at": timestamp,
                 "last_run_status": "success",
+                "last_error": None,
             },
         )
         print(f"Wrote {len(events)} upcoming event(s) to data/{filename}.")
@@ -380,6 +381,7 @@ def run_scraper(url, source_id, parse_events):
                 "+00:00", "Z"
             ),
             "last_run_status": "failed",
+            "last_error": str(error)[:500],
         }
         try:
             write_metadata(metadata_path, failure_metadata)
@@ -399,6 +401,7 @@ def read_metadata(path, source_id):
             "last_successful_at": None,
             "last_attempted_at": None,
             "last_run_status": "unknown",
+            "last_error": None,
         }
     with path.open(encoding="utf-8") as metadata_file:
         metadata = json.load(metadata_file)

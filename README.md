@@ -34,8 +34,9 @@ nasadia spolu so stránkou; scraper ich už necommitne do repozitára. Pred
 scrape-om workflow načíta posledné zverejnené manifesty a CSV súbory, takže pri
 zlyhaní zdroja zostanú jeho posledné úspešné dáta dostupné. Každý manifest
 uchováva čas posledného úspešného behu aj stav posledného pokusu; stránka
-načíta iba najnovší CSV pre každý zdroj. Staršie CSV snímky sa v nasadení
-neuchovávajú.
+načíta iba najnovší CSV pre každý zdroj. Pri chybe vrátane prázdneho výsledku
+sa zachová posledný CSV a dôvod sa zobrazí v stave zdroja; ostatné zdroje sa
+naďalej nasadia. Staršie CSV snímky sa v nasadení neuchovávajú.
 Prahy zoskupovania duplicít sú v `duplicate-thresholds.json`. Workflow
 `Configure duplicate thresholds` v GitHub Actions prijíma percentá pre možné a
 prísne zhody (0–100), overí ich a nasadí nový konfiguračný súbor aj so

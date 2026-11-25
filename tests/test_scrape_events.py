@@ -77,6 +77,7 @@ class ParseEventsTests(unittest.TestCase):
             )
             self.assertTrue(manifest["last_successful_at"].endswith("Z"))
             self.assertEqual(manifest["last_run_status"], "success")
+            self.assertIsNone(manifest["last_error"])
 
     def test_write_events_includes_optional_competition_type(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -283,9 +284,45 @@ class ParseEventsTests(unittest.TestCase):
                 manifest["last_successful_at"], previous["last_successful_at"]
             )
             self.assertEqual(manifest["last_run_status"], "failed")
+            self.assertEqual(manifest["last_error"], "source unavailable")
             self.assertNotEqual(
                 manifest["last_attempted_at"], previous["last_attempted_at"]
             )
+
+    def test_empty_scrape_preserves_previous_data_and_records_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "data"
+            data.mkdir()
+            previous_csv = "los-sk_20261107T041700000000Z.csv"
+            previous = {
+                "source_id": "los-sk",
+                "file": previous_csv,
+                "last_successful_at": "2026-11-07T04:17:00.000000Z",
+                "last_attempted_at": "2026-11-07T04:17:00.000000Z",
+                "last_run_status": "success",
+            }
+            csv_content = b"date,name,location,url,type\n"
+            (data / "los-sk.json").write_text(json.dumps(previous), encoding="utf-8")
+            (data / previous_csv).write_bytes(csv_content)
+            with (
+                mock.patch.object(scraper_common, "ROOT", root),
+                mock.patch.object(scraper_common, "fetch_html", return_value="calendar"),
+                self.assertRaisesRegex(ValueError, "No competition dates found"),
+            ):
+                scraper_common.run_scraper(
+                    "https://example.test",
+                    "los-sk",
+                    mock.Mock(
+                        side_effect=ValueError("No competition dates found")
+                    ),
+                )
+
+            manifest = json.loads((data / "los-sk.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["file"], previous_csv)
+            self.assertEqual((data / previous_csv).read_bytes(), csv_content)
+            self.assertEqual(manifest["last_run_status"], "failed")
+            self.assertEqual(manifest["last_error"], "No competition dates found")
 
     def test_los_sk_reads_displayed_dates_and_sorts(self):
         html = """

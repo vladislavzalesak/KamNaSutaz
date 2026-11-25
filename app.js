@@ -373,6 +373,17 @@ function renderSourceStatus(loadedSources) {
       details.append(lastFailure);
     }
 
+    if (
+      manifest.last_run_status === "failed" &&
+      typeof manifest.last_error === "string" &&
+      manifest.last_error
+    ) {
+      const errorMessage = document.createElement("p");
+      errorMessage.className = "source-error";
+      errorMessage.textContent = `Chyba: ${manifest.last_error}`;
+      details.append(errorMessage);
+    }
+
     item.append(details, actions);
     sourceStatusElement.append(item);
   }
